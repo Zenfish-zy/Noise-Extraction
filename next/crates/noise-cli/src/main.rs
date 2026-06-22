@@ -33,12 +33,28 @@ fn run() -> Result<(), String> {
             println!("{json}");
             Ok(())
         }
+        "analyze-wav" => {
+            let parsed = parse_analyze_wav_args(args.collect())?;
+            let config = read_config(&parsed.config_path)?;
+            let audio = noise_io::load_wav_mono(&parsed.input_path)
+                .map_err(|err| format!("failed to load input audio: {err}"))?;
+            let events =
+                noise_core::detect_events(&audio.samples, audio.samplerate, &config.detect);
+            let result = AnalyzeResult {
+                samplerate: audio.samplerate,
+                duration_seconds: audio.duration_seconds,
+                events,
+            };
+            let json = serde_json::to_string_pretty(&result).map_err(|err| err.to_string())?;
+            println!("{json}");
+            Ok(())
+        }
         _ => Err(usage()),
     }
 }
 
 fn usage() -> String {
-    "usage: noise-cli analyze-synthetic --config <path>".to_string()
+    "usage: noise-cli analyze-synthetic --config <path>\n       noise-cli analyze-wav --input <wav> --config <path>".to_string()
 }
 
 fn parse_config_arg(args: Vec<String>) -> Result<PathBuf, String> {
@@ -52,6 +68,38 @@ fn parse_config_arg(args: Vec<String>) -> Result<PathBuf, String> {
         }
     }
     Err("missing required --config <path>".to_string())
+}
+
+struct AnalyzeWavArgs {
+    input_path: PathBuf,
+    config_path: PathBuf,
+}
+
+fn parse_analyze_wav_args(args: Vec<String>) -> Result<AnalyzeWavArgs, String> {
+    let mut input_path = None;
+    let mut config_path = None;
+    let mut iter = args.into_iter();
+    while let Some(arg) = iter.next() {
+        match arg.as_str() {
+            "--input" => {
+                let Some(path) = iter.next() else {
+                    return Err("missing value for --input".to_string());
+                };
+                input_path = Some(PathBuf::from(path));
+            }
+            "--config" => {
+                let Some(path) = iter.next() else {
+                    return Err("missing value for --config".to_string());
+                };
+                config_path = Some(PathBuf::from(path));
+            }
+            _ => return Err(format!("unknown argument: {arg}")),
+        }
+    }
+    Ok(AnalyzeWavArgs {
+        input_path: input_path.ok_or_else(|| "missing required --input <wav>".to_string())?,
+        config_path: config_path.ok_or_else(|| "missing required --config <path>".to_string())?,
+    })
 }
 
 fn read_config(path: &PathBuf) -> Result<AppConfig, String> {

@@ -35,6 +35,16 @@ button:hover {
   background: #f0ece2;
 }
 
+button:disabled {
+  cursor: default;
+  opacity: 0.48;
+}
+
+button:disabled:hover {
+  border-color: #d7cfbe;
+  background: #fbfaf6;
+}
+
 .appShell {
   min-height: 100vh;
   display: grid;
@@ -167,6 +177,7 @@ button:hover {
 }
 
 .mainPanel {
+  position: relative;
   display: grid;
   grid-template-rows: auto 220px 1fr;
   min-width: 0;
@@ -179,6 +190,20 @@ button:hover {
   gap: 16px;
   border-bottom: 1px solid #ece6d9;
   padding: 12px;
+}
+
+.errorBanner {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  top: 62px;
+  z-index: 3;
+  border: 1px solid #d7b3a8;
+  border-radius: 8px;
+  background: #fff5f1;
+  color: #9a4b3b;
+  padding: 8px 10px;
+  font-size: 12px;
 }
 
 .fileMeta strong {
@@ -323,4 +348,13 @@ button:hover {
 
 input[type="range"] {
   accent-color: #4f7e6e;
+}
+
+select {
+  min-height: 34px;
+  border: 1px solid #d7cfbe;
+  border-radius: 8px;
+  background: #fbfaf6;
+  color: #4a463d;
+  padding: 6px 9px;
 }

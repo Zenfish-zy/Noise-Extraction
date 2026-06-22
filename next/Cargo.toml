@@ -2,6 +2,7 @@
 members = [
     "crates/noise-types",
     "crates/noise-core",
+    "crates/noise-io",
     "crates/noise-cli",
 ]
 resolver = "3"

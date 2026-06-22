@@ -7,5 +7,6 @@ repository.workspace = true
 
 [dependencies]
 noise-core = { path = "../noise-core" }
+noise-io = { path = "../noise-io" }
 noise-types = { path = "../noise-types" }
 serde_json = "1"

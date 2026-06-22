@@ -13,6 +13,7 @@ next/
 ├─ crates/
 │  ├─ noise-types/           # Shared config, event, report schemas
 │  ├─ noise-core/            # Audio processing core
+│  ├─ noise-io/              # Audio decoding/loading boundary
 │  └─ noise-cli/             # CLI bridge for tests and integration
 └─ fixtures/                 # Sanitized audio and golden JSON/CSV fixtures
 ```
@@ -22,6 +23,7 @@ next/
 ```powershell
 cargo test --manifest-path next/Cargo.toml
 cargo run --manifest-path next/Cargo.toml -p noise-cli -- analyze-synthetic --config next/fixtures/synthetic-close-peaks.config.json
+cargo run --manifest-path next/Cargo.toml -p noise-cli -- analyze-wav --input path/to/input.wav --config next/fixtures/synthetic-close-peaks.config.json
 ```
 
 ## Rules

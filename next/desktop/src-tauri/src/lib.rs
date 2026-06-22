@@ -26,6 +26,17 @@ fn analyze_synthetic() -> AnalyzeResult {
     }
 }
 
+#[tauri::command]
+fn analyze_wav(input_path: String, detect: DetectConfig) -> Result<AnalyzeResult, String> {
+    let audio = noise_io::load_wav_mono(&input_path).map_err(|err| err.to_string())?;
+    let events = noise_core::detect_events(&audio.samples, audio.samplerate, &detect);
+    Ok(AnalyzeResult {
+        samplerate: audio.samplerate,
+        duration_seconds: audio.duration_seconds,
+        events,
+    })
+}
+
 fn synthetic_demo_signal() -> (Vec<f32>, u32, f64) {
     let samplerate = 8000_u32;
     let duration_seconds = 8.0_f64;
@@ -49,7 +60,12 @@ fn fill_span(samples: &mut [f32], samplerate: u32, start: f64, end: f64, value: 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![app_version, analyze_synthetic])
+        .plugin(tauri_plugin_dialog::init())
+        .invoke_handler(tauri::generate_handler![
+            app_version,
+            analyze_synthetic,
+            analyze_wav
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

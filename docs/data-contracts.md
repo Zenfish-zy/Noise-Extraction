@@ -65,6 +65,19 @@ The next-generation implementation uses JSON contracts to compare Python referen
 }
 ```
 
+## Audio Input
+
+Current next-generation support:
+
+- `noise-cli analyze-wav --input <wav> --config <json>` reads local WAV files.
+- Tauri command `analyze_wav(input_path, detect)` reads local WAV files selected by the frontend dialog.
+- WAV is decoded to mono `f32`; multichannel files are averaged per frame.
+
+Current limitations:
+
+- `m4a`, `mp3`, `aac`, `flac`, and `ogg` are still handled by the Python reference app only.
+- Noise reduction and export are not yet implemented in the Rust backend.
+
 ## ErrorResult
 
 ```json

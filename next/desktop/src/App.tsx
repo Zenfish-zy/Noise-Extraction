@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { open } from "@tauri-apps/plugin-dialog";
 import { useEffect, useState, type ReactNode } from "react";
 import {
   Download,
@@ -14,6 +15,7 @@ import {
 } from "lucide-react";
 
 type EventKind = "rumble" | "thud" | "drag" | "transient" | "other";
+type Sensitivity = "low" | "medium" | "high";
 
 type CoreNoiseEvent = {
   start: number;
@@ -28,6 +30,16 @@ type AnalyzeResult = {
   samplerate: number;
   duration_seconds: number;
   events: CoreNoiseEvent[];
+};
+
+type DetectConfig = {
+  frame_ms: number;
+  hop_ms: number;
+  sensitivity: Sensitivity;
+  min_event_seconds: number;
+  merge_gap_seconds: number;
+  pad_seconds: number;
+  min_peak_dbfs: number;
 };
 
 type NoiseEvent = {
@@ -66,15 +78,75 @@ const kindTone: Record<EventKind, string> = {
 function App() {
   const [version, setVersion] = useState("0.1.0");
   const [analysis, setAnalysis] = useState<AnalyzeResult | null>(null);
+  const [fileLabel, setFileLabel] = useState("20260603_233810.m4a");
+  const [inputPath, setInputPath] = useState<string | null>(null);
+  const [status, setStatus] = useState("加载 Rust 合成样例");
+  const [error, setError] = useState<string | null>(null);
+  const [sensitivity, setSensitivity] = useState<Sensitivity>("medium");
+  const [mergeGap, setMergeGap] = useState(0.8);
+  const [padSeconds, setPadSeconds] = useState(0.6);
+  const [minPeakDbfs, setMinPeakDbfs] = useState(-45);
 
   useEffect(() => {
     void invoke<string>("app_version")
       .then(setVersion)
       .catch(() => undefined);
     void invoke<AnalyzeResult>("analyze_synthetic")
-      .then(setAnalysis)
-      .catch(() => undefined);
+      .then((result) => {
+        setAnalysis(result);
+        setFileLabel("Rust synthetic");
+        setStatus("样例分析已完成");
+      })
+      .catch(() => {
+        setStatus("使用前端预览数据");
+      });
   }, []);
+
+  function detectConfig(): DetectConfig {
+    return {
+      frame_ms: 30,
+      hop_ms: 10,
+      sensitivity,
+      min_event_seconds: 0.08,
+      merge_gap_seconds: mergeGap,
+      pad_seconds: padSeconds,
+      min_peak_dbfs: minPeakDbfs,
+    };
+  }
+
+  async function analyzeCurrentWav(path: string) {
+    setError(null);
+    setStatus("正在分析 WAV");
+    try {
+      const result = await invoke<AnalyzeResult>("analyze_wav", {
+        inputPath: path,
+        detect: detectConfig(),
+      });
+      setAnalysis(result);
+      setFileLabel(path.split(/[\\/]/).pop() ?? path);
+      setInputPath(path);
+      setStatus(`WAV 分析完成 · ${result.events.length} 段`);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      setError(message);
+      setStatus("WAV 分析失败");
+    }
+  }
+
+  async function importWav() {
+    setError(null);
+    const selected = await open({
+      multiple: false,
+      directory: false,
+      title: "选择 WAV 录音",
+      filters: [{ name: "WAV 音频", extensions: ["wav"] }],
+    });
+    if (typeof selected !== "string") {
+      return;
+    }
+
+    await analyzeCurrentWav(selected);
+  }
 
   const events = analysis
     ? analysis.events.map((event, index) => ({
@@ -112,7 +184,7 @@ function App() {
         </div>
 
         <div className="topActions">
-          <button className="primaryButton">
+          <button className="primaryButton" onClick={importWav}>
             <FileAudio size={18} />
             导入录音
           </button>
@@ -135,15 +207,24 @@ function App() {
         <section className="mainPanel">
           <div className="toolbar">
             <div className="fileMeta">
-              <strong>20260603_233810.m4a</strong>
-              <span>{analysis ? `Rust synthetic · ${durationSeconds.toFixed(1)}s` : "14.4 MB · 14:43"}</span>
+              <strong>{fileLabel}</strong>
+              <span>
+                {status} · {durationSeconds.toFixed(1)}s
+              </span>
             </div>
             <div className="toolButtons">
               <button>
                 <Play size={17} />
                 播放
               </button>
-              <button>
+              <button
+                onClick={() => {
+                  if (inputPath) {
+                    void analyzeCurrentWav(inputPath);
+                  }
+                }}
+                disabled={!inputPath}
+              >
                 <ScanLine size={17} />
                 检测事件
               </button>
@@ -153,6 +234,8 @@ function App() {
               </button>
             </div>
           </div>
+
+          {error ? <div className="errorBanner">{error}</div> : null}
 
           <div className="waveform" aria-label="波形时间轴">
             <div className="waveGrid" />
@@ -223,16 +306,45 @@ function App() {
           </dl>
           <div className="settingsBox">
             <label>
-              <span>合并间隔</span>
-              <input type="range" min="0" max="5" step="0.1" defaultValue="0.8" />
+              <span>灵敏度 · {sensitivity === "high" ? "高" : sensitivity === "low" ? "低" : "中"}</span>
+              <select value={sensitivity} onChange={(event) => setSensitivity(event.target.value as Sensitivity)}>
+                <option value="low">低</option>
+                <option value="medium">中</option>
+                <option value="high">高</option>
+              </select>
             </label>
             <label>
-              <span>起止缓冲</span>
-              <input type="range" min="0" max="3" step="0.1" defaultValue="0.6" />
+              <span>合并间隔 · {mergeGap.toFixed(1)}s</span>
+              <input
+                type="range"
+                min="0"
+                max="5"
+                step="0.1"
+                value={mergeGap}
+                onChange={(event) => setMergeGap(Number(event.target.value))}
+              />
             </label>
             <label>
-              <span>最小响度</span>
-              <input type="range" min="-90" max="-10" step="1" defaultValue="-45" />
+              <span>起止缓冲 · {padSeconds.toFixed(1)}s</span>
+              <input
+                type="range"
+                min="0"
+                max="3"
+                step="0.1"
+                value={padSeconds}
+                onChange={(event) => setPadSeconds(Number(event.target.value))}
+              />
+            </label>
+            <label>
+              <span>最小响度 · {minPeakDbfs} dBFS</span>
+              <input
+                type="range"
+                min="-90"
+                max="-10"
+                step="1"
+                value={minPeakDbfs}
+                onChange={(event) => setMinPeakDbfs(Number(event.target.value))}
+              />
             </label>
           </div>
         </aside>

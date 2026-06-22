@@ -20,7 +20,7 @@ Exit criteria:
 
 ## Phase 1: Next Skeleton
 
-Status: current phase.
+Status: complete.
 
 Goals:
 
@@ -37,10 +37,12 @@ Exit criteria:
 
 ## Phase 2: UI Prototype
 
+Status: complete for static UI; in progress for live workflow wiring.
+
 Goals:
 
 - Create a Tauri 2 + React/TypeScript app under `next/desktop`.
-- Build static UI with mock data.
+- Build static UI with mock data and Rust synthetic data.
 - Implement the calm review workflow:
   - Import surface.
   - Waveform area.
@@ -51,22 +53,25 @@ Goals:
 
 Exit criteria:
 
-- `pnpm tauri dev` opens the prototype.
-- No real audio processing is required.
-- UI can render mock events and mode states.
+- `pnpm build` passes for the React prototype.
+- Tauri shell compiles with a React frontend.
+- UI can render mock, synthetic Rust, and WAV analysis events.
 
 ## Phase 3: CLI Bridge
+
+Status: current phase.
 
 Goals:
 
 - Add `next/crates/noise-cli`.
-- Initially call the existing Python reference implementation or consume exported JSON fixtures.
-- Let Tauri call a backend command that returns event-like mock/reference data.
+- Provide CLI commands for synthetic and WAV analysis.
+- Let Tauri call backend commands that return `AnalyzeResult`.
+- Keep JSON output compatible with `docs/data-contracts.md`.
 
 Exit criteria:
 
 - Tauri UI can trigger an analyze command.
-- Frontend receives progress and results.
+- Frontend receives results for synthetic and WAV input.
 - Errors are displayed consistently.
 
 ## Phase 4: Rust Core Parity
@@ -75,6 +80,7 @@ Goals:
 
 - Implement `noise-types`.
 - Implement `noise-core` event detection parity for synthetic fixtures.
+- Implement `noise-io` decoding beyond WAV or a documented fallback path.
 - Implement full WAV export and highlight export.
 - Implement CSV report export.
 
@@ -121,4 +127,8 @@ Exit criteria:
 - [x] Add fixture contract docs.
 - [x] Add compilable Rust workspace skeleton.
 - [x] Add first Rust CLI JSON contract command.
-- [ ] Add Tauri prototype only after skeleton review.
+- [x] Add Tauri React desktop prototype.
+- [x] Add Rust WAV input boundary and CLI smoke path.
+- [x] Wire frontend WAV selection to Tauri/Rust analysis.
+- [ ] Add Rust export path for full WAV and highlight WAV.
+- [ ] Add parity fixtures against Python reference output.

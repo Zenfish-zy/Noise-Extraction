@@ -35,6 +35,7 @@ Noise-Extraction/
 │  ├─ crates/
 │  │  ├─ noise-types/           # Shared config/event/report types
 │  │  ├─ noise-core/            # Audio processing core
+│  │  ├─ noise-io/              # Audio loading/decoding boundary
 │  │  └─ noise-cli/             # CLI bridge and golden-test runner
 │  └─ fixtures/                 # Synthetic and sanitized test fixtures
 └─ README.md
@@ -78,15 +79,32 @@ Future responsibilities:
 
 Future responsibilities:
 
-- Audio decode to mono `f32`.
-- Optional noise reduction.
 - Event detection and merge logic.
 - Manual event construction.
+
+### Rust IO
+
+Current responsibilities:
+
+- WAV decode to mono `f32`.
+- Stereo/multichannel downmix.
+- Sampling-rate and duration reporting.
+
+Future responsibilities:
+
+- Optional support for additional local formats, or a clearly isolated decoder fallback.
+
+### Rust Processing Pipeline
+
+Future responsibilities:
+
+- Optional noise reduction.
+- Preprocess/analyze/export orchestration.
 - Full WAV export.
 - Highlight WAV export.
 - CSV report export.
 
-Rust core must be usable without the GUI through `noise-cli`.
+Rust processing modules must be usable without the GUI through `noise-cli`.
 
 ## Data Contracts
 
