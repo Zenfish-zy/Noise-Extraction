@@ -1,0 +1,28 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Virtual environments
+.venv
+.venv/
+
+# Local recordings and exported evidence
+*.m4a
+*.mp3
+*.wav
+*.flac
+*.aac
+*.ogg
+噪音/
+
+# Local diagnostics / UI screenshots
+import_times.txt
+ui_check.png
+UI.jpg

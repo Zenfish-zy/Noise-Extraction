@@ -1,0 +1,28 @@
+[project]
+name = "noise-evidence"
+version = "0.1.0"
+description = "楼上噪音取证助手：导入录音，滤除底噪，自动识别噪音事件，导出密集噪音提取与证据报告"
+requires-python = ">=3.13"
+dependencies = [
+    "imageio-ffmpeg>=0.6.0",
+    "noisereduce>=3.0.3",
+    "numpy>=2.4.6",
+    "pyside6>=6.11.1",
+    "scipy>=1.18.0",
+    "soundfile>=0.14.0",
+]
+
+[project.scripts]
+noise-evidence = "noise_evidence.app:main"
+
+[tool.setuptools]
+# 明确只打包 noise_evidence，避免根目录下用户导出的"噪音/"文件夹被误当作包
+packages = ["noise_evidence", "noise_evidence.gui"]
+
+[tool.uv]
+package = true
+
+[dependency-groups]
+dev = [
+    "pyinstaller>=6.21.0",
+]
