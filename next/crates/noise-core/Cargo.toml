@@ -1,0 +1,12 @@
+[package]
+name = "noise-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+noise-types = { path = "../noise-types" }
+
+[lib]
+path = "src/lib.rs"

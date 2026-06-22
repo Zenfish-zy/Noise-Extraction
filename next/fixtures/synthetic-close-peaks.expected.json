@@ -1,0 +1,12 @@
+{
+  "samplerate": 8000,
+  "duration_seconds": 3.0,
+  "events": [
+    {
+      "start_range": [0.85, 1.05],
+      "end_range": [1.45, 1.65],
+      "manual": false,
+      "keep": true
+    }
+  ]
+}

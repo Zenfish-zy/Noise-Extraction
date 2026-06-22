@@ -1,0 +1,31 @@
+{
+  "mode": "highlight",
+  "denoise": {
+    "enabled": false,
+    "noise_sample_seconds": 1.0,
+    "prop_decrease": 0.9,
+    "stationary": true
+  },
+  "detect": {
+    "frame_ms": 30.0,
+    "hop_ms": 10.0,
+    "sensitivity": "high",
+    "min_event_seconds": 0.08,
+    "merge_gap_seconds": 0.8,
+    "pad_seconds": 0.1,
+    "min_peak_dbfs": -60.0
+  },
+  "gain": {
+    "enabled": true,
+    "mode": "per_event",
+    "target_peak_dbfs": -1.0,
+    "max_gain_db": 36.0
+  },
+  "export": {
+    "gap_seconds": 0.5,
+    "insert_beep": true,
+    "beep_hz": 880.0,
+    "beep_seconds": 0.12,
+    "out_samplerate": null
+  }
+}

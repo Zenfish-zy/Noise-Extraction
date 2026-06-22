@@ -14,6 +14,9 @@ htmlcov/
 # Virtual environments
 .venv
 .venv/
+node_modules/
+target/
+next/target/
 
 # Local recordings and exported evidence
 *.m4a

@@ -67,6 +67,16 @@ uv run pyinstaller noise_evidence.spec
 - `main` 分支推送后会通过 GitHub Actions 自动运行编译检查和核心测试。
 - 当前首个版本为 `0.1.0`。
 
+## 下一代重构方向
+
+下一代版本规划在 `next/` 下推进，目标架构为 `Tauri + React/TypeScript + Rust core`。当前 Python/PySide6 版本保留为稳定版和行为基准。
+
+详见：
+
+- `docs/architecture-next.md`
+- `docs/migration-plan.md`
+- `docs/data-contracts.md`
+
 ## 取证边界
 
 本工具用于辅助定位和整理录音中的可疑噪音事件。事件分类和“疑似录制混入”只提供声学线索，不能单独证明声音来源；最终证据判断仍应结合原始录音、录制时间、环境记录和人工复核。

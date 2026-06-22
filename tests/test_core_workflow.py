@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -11,6 +12,8 @@ import soundfile as sf
 from noise_evidence.config import ClassifyConfig, DetectConfig, ExportConfig, GainConfig
 from noise_evidence.detect import NoiseEvent, detect_events, make_manual_event
 from noise_evidence.export import export_full_wav, export_highlight_wav, export_report_csv
+
+ROOT = Path(__file__).resolve().parent.parent
 
 
 class CoreWorkflowTest(unittest.TestCase):
@@ -86,6 +89,43 @@ class CoreWorkflowTest(unittest.TestCase):
                 rows = list(csv.reader(f))
             self.assertIn("来源", rows[0])
             self.assertEqual(rows[1][2], "自动")
+
+    def test_fixture_contract_close_peaks(self) -> None:
+        config_path = ROOT / "next" / "fixtures" / "synthetic-close-peaks.config.json"
+        expected_path = ROOT / "next" / "fixtures" / "synthetic-close-peaks.expected.json"
+        with config_path.open("r", encoding="utf-8") as f:
+            raw_config = json.load(f)
+        with expected_path.open("r", encoding="utf-8") as f:
+            expected = json.load(f)
+
+        sr = int(expected["samplerate"])
+        duration = float(expected["duration_seconds"])
+        data = np.zeros(int(sr * duration), dtype=np.float32)
+        data[int(1.0 * sr): int(1.05 * sr)] = 0.7
+        data[int(1.45 * sr): int(1.50 * sr)] = 0.65
+
+        detect_cfg = raw_config["detect"]
+        cfg = DetectConfig(
+            frame_ms=detect_cfg["frame_ms"],
+            hop_ms=detect_cfg["hop_ms"],
+            sensitivity=detect_cfg["sensitivity"],
+            min_event_seconds=detect_cfg["min_event_seconds"],
+            merge_gap_seconds=detect_cfg["merge_gap_seconds"],
+            pad_seconds=detect_cfg["pad_seconds"],
+            min_peak_dbfs=detect_cfg["min_peak_dbfs"],
+        )
+        events = detect_events(data, sr, cfg, ClassifyConfig())
+
+        self.assertEqual(len(events), len(expected["events"]))
+        for event, expected_event in zip(events, expected["events"], strict=True):
+            start_min, start_max = expected_event["start_range"]
+            end_min, end_max = expected_event["end_range"]
+            self.assertGreaterEqual(event.start, start_min)
+            self.assertLessEqual(event.start, start_max)
+            self.assertGreaterEqual(event.end, end_min)
+            self.assertLessEqual(event.end, end_max)
+            self.assertEqual(event.manual, expected_event["manual"])
+            self.assertEqual(event.keep, expected_event["keep"])
 
 
 if __name__ == "__main__":
