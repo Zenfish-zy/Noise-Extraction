@@ -120,4 +120,5 @@ Exit criteria:
 - [x] Add `next/` skeleton.
 - [x] Add fixture contract docs.
 - [x] Add compilable Rust workspace skeleton.
+- [x] Add first Rust CLI JSON contract command.
 - [ ] Add Tauri prototype only after skeleton review.

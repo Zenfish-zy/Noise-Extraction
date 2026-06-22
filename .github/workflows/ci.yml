@@ -54,3 +54,6 @@ jobs:
 
       - name: Test Rust workspace
         run: cargo test --manifest-path next\Cargo.toml
+
+      - name: Smoke Rust CLI
+        run: cargo run --manifest-path next\Cargo.toml -p noise-cli -- analyze-synthetic --config next\fixtures\synthetic-close-peaks.config.json

@@ -1,11 +1,31 @@
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+use serde::{Deserialize, Serialize};
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct AppConfig {
+    pub mode: ProcessMode,
+    pub denoise: DenoiseConfig,
+    pub detect: DetectConfig,
+    pub gain: GainConfig,
+    pub export: ExportConfig,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum ProcessMode {
     FullDenoise,
     FullAmplify,
     Highlight,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct DenoiseConfig {
+    pub enabled: bool,
+    pub noise_sample_seconds: f64,
+    pub prop_decrease: f64,
+    pub stationary: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct DetectConfig {
     pub frame_ms: f64,
     pub hop_ms: f64,
@@ -40,14 +60,40 @@ impl DetectConfig {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct GainConfig {
+    pub enabled: bool,
+    pub mode: GainMode,
+    pub target_peak_dbfs: f64,
+    pub max_gain_db: f64,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct ExportConfig {
+    pub gap_seconds: f64,
+    pub insert_beep: bool,
+    pub beep_hz: f64,
+    pub beep_seconds: f64,
+    pub out_samplerate: Option<u32>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum Sensitivity {
     Low,
     Medium,
     High,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum GainMode {
+    Off,
+    Global,
+    PerEvent,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct NoiseEvent {
     pub start: f64,
     pub end: f64,
@@ -67,7 +113,22 @@ impl NoiseEvent {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct AnalyzeResult {
+    pub samplerate: u32,
+    pub duration_seconds: f64,
+    pub events: Vec<NoiseEvent>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct ErrorResult {
+    pub code: String,
+    pub message: String,
+    pub details: Option<String>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum EventKind {
     Rumble,
     Thud,

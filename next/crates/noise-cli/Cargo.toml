@@ -8,3 +8,4 @@ repository.workspace = true
 [dependencies]
 noise-core = { path = "../noise-core" }
 noise-types = { path = "../noise-types" }
+serde_json = "1"

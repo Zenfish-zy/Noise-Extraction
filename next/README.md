@@ -21,6 +21,7 @@ next/
 
 ```powershell
 cargo test --manifest-path next/Cargo.toml
+cargo run --manifest-path next/Cargo.toml -p noise-cli -- analyze-synthetic --config next/fixtures/synthetic-close-peaks.config.json
 ```
 
 ## Rules
