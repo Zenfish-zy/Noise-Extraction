@@ -64,6 +64,7 @@ uv run pyinstaller noise_evidence.spec
 
 - 源码、图标资源、锁文件和打包配置纳入 Git。
 - 本地录音、导出结果、测试截图、导入耗时日志、虚拟环境和构建产物不纳入 Git。
+- `main` 分支推送后会通过 GitHub Actions 自动运行编译检查和核心测试。
 - 当前首个版本为 `0.1.0`。
 
 ## 取证边界
