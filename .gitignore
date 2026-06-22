@@ -17,6 +17,7 @@ htmlcov/
 node_modules/
 target/
 next/target/
+next/desktop/src-tauri/gen/
 
 # Local recordings and exported evidence
 *.m4a

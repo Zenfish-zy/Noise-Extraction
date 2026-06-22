@@ -1,0 +1,326 @@
+:root {
+  color: #34312b;
+  background: #f3efe6;
+  font-family: "Microsoft YaHei UI", "Segoe UI", system-ui, sans-serif;
+  font-size: 14px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 1024px;
+  min-height: 100vh;
+  background: #f3efe6;
+}
+
+button,
+select,
+input {
+  font: inherit;
+}
+
+button {
+  border: 1px solid #d7cfbe;
+  border-radius: 8px;
+  background: #fbfaf6;
+  color: #4a463d;
+  cursor: pointer;
+}
+
+button:hover {
+  border-color: #bfb59f;
+  background: #f0ece2;
+}
+
+.appShell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: 14px;
+  padding: 16px;
+}
+
+.topBar,
+.exportBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border: 1px solid #e2dbcb;
+  border-radius: 8px;
+  background: #fbfaf6;
+  padding: 12px;
+}
+
+.brandBlock,
+.topActions,
+.toolButtons,
+.modeGroup,
+.sideHeader,
+.exportBar > div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.brandBlock h1,
+.sideHeader h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.brandBlock p,
+.exportBar span,
+.fileMeta span,
+.step span {
+  display: block;
+  color: #8b8374;
+  font-size: 12px;
+}
+
+.appMark,
+.stepIcon {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  background: #e4ece6;
+  color: #4f7e6e;
+}
+
+.modeGroup {
+  background: #efeade;
+  border-radius: 8px;
+  padding: 4px;
+}
+
+.modeButton {
+  min-width: 104px;
+  border-color: transparent;
+  background: transparent;
+  padding: 8px 10px;
+}
+
+.modeButton.active {
+  background: #4f7e6e;
+  color: #fbfaf6;
+}
+
+.primaryButton,
+.ghostButton,
+.toolButtons button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 8px 14px;
+}
+
+.primaryButton {
+  background: #4f7e6e;
+  border-color: #4f7e6e;
+  color: #fbfaf6;
+  font-weight: 700;
+}
+
+.primaryButton:hover {
+  background: #5c8e7d;
+  border-color: #5c8e7d;
+}
+
+.workspace {
+  display: grid;
+  grid-template-columns: 176px minmax(0, 1fr) 300px;
+  gap: 14px;
+  min-height: 0;
+}
+
+.flowRail,
+.mainPanel,
+.sidePanel {
+  border: 1px solid #e2dbcb;
+  border-radius: 8px;
+  background: #fbfaf6;
+}
+
+.flowRail {
+  padding: 10px;
+}
+
+.step {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 6px;
+  border-radius: 8px;
+  color: #6e685b;
+}
+
+.step.active {
+  background: #eef4ef;
+  color: #34312b;
+}
+
+.mainPanel {
+  display: grid;
+  grid-template-rows: auto 220px 1fr;
+  min-width: 0;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid #ece6d9;
+  padding: 12px;
+}
+
+.fileMeta strong {
+  display: block;
+  font-size: 15px;
+}
+
+.waveform {
+  position: relative;
+  overflow: hidden;
+  background:
+    linear-gradient(180deg, rgba(251, 250, 246, 0), rgba(251, 250, 246, 0.9)),
+    repeating-linear-gradient(90deg, transparent 0 56px, rgba(215, 207, 190, 0.45) 57px),
+    linear-gradient(180deg, #f8f6f0, #f2ede3);
+}
+
+.waveGrid {
+  position: absolute;
+  inset: 34px 0;
+  background:
+    radial-gradient(ellipse at center, rgba(79, 126, 110, 0.35) 0 1px, transparent 1px),
+    linear-gradient(90deg, #b7ac98 0 1px, transparent 1px);
+  background-size: 12px 38px, 18px 100%;
+  opacity: 0.28;
+}
+
+.eventBlock {
+  position: absolute;
+  top: 26px;
+  bottom: 26px;
+  min-width: 7px;
+  border-radius: 6px;
+  opacity: 0.5;
+}
+
+.eventBlock.muted {
+  opacity: 0.18;
+}
+
+.playhead {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: #b05b4a;
+}
+
+.reviewTable {
+  overflow: auto;
+  border-top: 1px solid #ece6d9;
+}
+
+.tableHead,
+.tableRow {
+  display: grid;
+  grid-template-columns: 70px 96px 80px 74px 1fr 96px 46px;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 12px;
+  gap: 10px;
+}
+
+.tableHead {
+  background: #efeade;
+  color: #6e685b;
+  font-weight: 700;
+}
+
+.tableRow {
+  border-top: 1px solid #f0eadf;
+}
+
+.pill {
+  width: fit-content;
+  min-width: 36px;
+  border-radius: 999px;
+  padding: 3px 9px;
+  text-align: center;
+  font-size: 12px;
+}
+
+.pill.keep {
+  background: #e4ece6;
+  color: #3f6b5d;
+}
+
+.pill.off {
+  background: #efeade;
+  color: #8b8374;
+}
+
+.kind {
+  font-weight: 700;
+}
+
+.iconButton {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+}
+
+.sidePanel {
+  padding: 14px;
+}
+
+.detailList {
+  margin: 16px 0;
+}
+
+.detailList div {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  border-bottom: 1px solid #eee7dc;
+  padding: 11px 0;
+}
+
+.detailList dt {
+  color: #8b8374;
+}
+
+.detailList dd {
+  margin: 0;
+  font-weight: 700;
+  text-align: right;
+}
+
+.settingsBox {
+  display: grid;
+  gap: 14px;
+  border-top: 1px solid #eee7dc;
+  padding-top: 14px;
+}
+
+.settingsBox label {
+  display: grid;
+  gap: 8px;
+  color: #6e685b;
+}
+
+input[type="range"] {
+  accent-color: #4f7e6e;
+}
