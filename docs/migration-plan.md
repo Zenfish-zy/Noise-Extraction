@@ -142,4 +142,18 @@ Exit criteria:
 - [x] Render real waveform envelopes for imported audio in the Next UI.
 - [x] Add preview-WAV local playback and waveform click-to-seek in the Next UI.
 - [x] Add parity fixtures against Python reference output.
-- [ ] Add Tauri package smoke test.
+- [x] Add Tauri package smoke test.
+
+## Latest Smoke Commands
+
+The current Next desktop package smoke test uses:
+
+```powershell
+pnpm tauri build --no-bundle --ci
+pnpm tauri build --ci --no-sign --bundles nsis
+```
+
+Verified output includes:
+
+- Release binary: `next/desktop/src-tauri/target/release/noise-evidence-next.exe`
+- NSIS installer: `next/desktop/src-tauri/target/release/bundle/nsis/楼上噪音取证助手 Next_0.1.0_x64-setup.exe`
