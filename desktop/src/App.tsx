@@ -475,6 +475,22 @@ function App() {
     }
   }
 
+  async function changeAmplifyEnabled(enabled: boolean) {
+    setAmplifyEnabled(enabled);
+    setError(null);
+    if (inputPath) {
+      await inspectCurrentAudio(inputPath);
+    }
+  }
+
+  async function changeSliceEnabled(enabled: boolean) {
+    setSliceEnabled(enabled);
+    setError(null);
+    if (inputPath) {
+      await inspectCurrentAudio(inputPath);
+    }
+  }
+
   const hasInput = inputPath !== null;
   const kept = events.filter((event) => event.keep);
   const keptSeconds = kept.reduce((sum, event) => sum + event.end - event.start, 0);
@@ -544,14 +560,6 @@ function App() {
               <button onClick={() => void togglePlayback()} disabled={!audioSrc}>
                 {isPlaying ? <Pause size={17} /> : <Play size={17} />}
                 {isPlaying ? "暂停" : "播放"}
-              </button>
-              <button
-                className={sliceEnabled ? "activeTool" : ""}
-                onClick={() => setSliceEnabled(!sliceEnabled)}
-                disabled={!inputPath}
-              >
-                <Scissors size={17} />
-                智能切片
               </button>
               <button
                 onClick={() => {
@@ -704,7 +712,19 @@ function App() {
               <input
                 type="checkbox"
                 checked={amplifyEnabled}
-                onChange={(event) => setAmplifyEnabled(event.target.checked)}
+                onChange={(event) => {
+                  void changeAmplifyEnabled(event.target.checked);
+                }}
+              />
+            </label>
+            <label className="toggleSetting">
+              <span>切片 · {sliceEnabled ? "开" : "关"}</span>
+              <input
+                type="checkbox"
+                checked={sliceEnabled}
+                onChange={(event) => {
+                  void changeSliceEnabled(event.target.checked);
+                }}
               />
             </label>
             <label>
