@@ -945,7 +945,7 @@ function App() {
 
             <div className="modalBody">
               {settingsTab === "detect" && (
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-lg)" }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-lg)" }}>
                   <section className="settingsGroup">
                     <h3>检测参数</h3>
                     <label>
