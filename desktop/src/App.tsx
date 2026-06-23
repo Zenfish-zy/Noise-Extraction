@@ -170,15 +170,41 @@ function App() {
   const [sliceEnabled, setSliceEnabled] = useState(false);
   const [importProgress, setImportProgress] = useState<{ stage: string; percent: number } | null>(null);
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
-  const [aiEnabled, setAiEnabled] = useState(false);
-  const [aiEndpoint, setAiEndpoint] = useState("https://api.openai.com/v1/chat/completions");
-  const [aiKey, setAiKey] = useState("");
-  const [aiModel, setAiModel] = useState("gpt-4o-mini");
+  const [aiEnabled, setAiEnabled] = useState(() => {
+    const saved = localStorage.getItem("aiEnabled");
+    return saved ? JSON.parse(saved) : false;
+  });
+  const [aiEndpoint, setAiEndpoint] = useState(() => {
+    return localStorage.getItem("aiEndpoint") || "https://api.openai.com/v1/chat/completions";
+  });
+  const [aiKey, setAiKey] = useState(() => {
+    return localStorage.getItem("aiKey") || "";
+  });
+  const [aiModel, setAiModel] = useState(() => {
+    return localStorage.getItem("aiModel") || "gpt-4o-mini";
+  });
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [leftCollapsed, setLeftCollapsed] = useState(false);
   const [rightCollapsed, setRightCollapsed] = useState(false);
   const [modeMenuOpen, setModeMenuOpen] = useState(false);
   const [settingsTab, setSettingsTab] = useState<"detect" | "ai" | "export" | "ui" | "about">("detect");
+
+  // Save AI settings to localStorage
+  useEffect(() => {
+    localStorage.setItem("aiEnabled", JSON.stringify(aiEnabled));
+  }, [aiEnabled]);
+
+  useEffect(() => {
+    localStorage.setItem("aiEndpoint", aiEndpoint);
+  }, [aiEndpoint]);
+
+  useEffect(() => {
+    localStorage.setItem("aiKey", aiKey);
+  }, [aiKey]);
+
+  useEffect(() => {
+    localStorage.setItem("aiModel", aiModel);
+  }, [aiModel]);
 
   useEffect(() => {
     void invoke<string>("app_version")
@@ -776,8 +802,8 @@ function App() {
       </section>
 
       {settingsOpen && (
-        <div className="modalOverlay" onClick={() => setSettingsOpen(false)}>
-          <div className="modalContent" onClick={(e) => e.stopPropagation()}>
+        <div className="modalOverlay">
+          <div className="modalContent">
             <div className="modalHeader">
               <h2>⚙️ 设置</h2>
               <button className="iconButton" onClick={() => setSettingsOpen(false)} aria-label="关闭">

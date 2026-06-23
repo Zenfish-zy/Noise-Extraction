@@ -812,12 +812,11 @@ input[type="password"]::placeholder {
 .modalOverlay {
   position: fixed;
   inset: 0;
-  background: rgba(74, 70, 61, 0.4);
-  backdrop-filter: blur(4px);
+  background: var(--color-background);
   z-index: 100;
   display: flex;
-  align-items: center;
-  justify-content: center;
+  align-items: stretch;
+  justify-content: stretch;
   animation: fadeIn 0.2s ease;
 }
 
@@ -831,42 +830,29 @@ input[type="password"]::placeholder {
 }
 
 .modalContent {
-  width: 90%;
-  max-width: 520px;
-  max-height: 85vh;
-  background: #ffffff;
-  border: 1px solid #e2dbcb;
-  border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(74, 70, 61, 0.15);
+  width: 100%;
+  height: 100%;
+  background: var(--color-background);
   display: flex;
   flex-direction: column;
-  animation: slideUp 0.3s ease;
-}
-
-@keyframes slideUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  animation: fadeIn 0.2s ease;
 }
 
 .modalHeader {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 20px;
-  border-bottom: 1px solid #e7e3da;
+  padding: var(--space-lg);
+  border-bottom: 1px solid var(--color-border);
+  background: white;
+  box-shadow: var(--shadow-sm);
 }
 
 .modalHeader h2 {
   margin: 0;
-  font-size: 20px;
+  font-size: var(--font-size-lg);
   font-weight: 700;
-  color: #4a463d;
+  color: var(--color-text);
 }
 
 .modalHeader .iconButton {
@@ -878,11 +864,16 @@ input[type="password"]::placeholder {
 .modalBody {
   flex: 1;
   overflow-y: auto;
-  padding: 20px;
+  padding: var(--space-xl);
+  background: var(--color-surface);
 }
 
 .settingsGroup {
-  margin-bottom: 24px;
+  margin-bottom: var(--space-xl);
+  padding: var(--space-lg);
+  background: white;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
 }
 
 .settingsGroup:last-child {
@@ -890,23 +881,23 @@ input[type="password"]::placeholder {
 }
 
 .settingsGroup h3 {
-  margin: 0 0 12px 0;
-  font-size: 16px;
+  margin: 0 0 var(--space-md) 0;
+  font-size: var(--font-size-md);
   font-weight: 600;
-  color: #4a463d;
+  color: var(--color-text);
 }
 
 .settingsGroup label {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  margin-bottom: 14px;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
 }
 
 .settingsGroup label span {
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 500;
-  color: #6b7077;
+  color: var(--color-text-secondary);
 }
 
 .settingsGroup .toggleSetting {
@@ -919,9 +910,11 @@ input[type="password"]::placeholder {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 10px;
-  padding: 16px 20px;
-  border-top: 1px solid #e7e3da;
+  gap: var(--space-sm);
+  padding: var(--space-lg);
+  border-top: 1px solid var(--color-border);
+  background: white;
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.05);
 }
 
 .paramsSection {
@@ -960,32 +953,33 @@ input[type="password"]::placeholder {
 
 .modalTabs {
   display: flex;
-  gap: 4px;
-  padding: 12px 16px 0 16px;
-  border-bottom: 1px solid #e7e3da;
+  gap: var(--space-sm);
+  padding: 0 var(--space-lg);
+  border-bottom: 1px solid var(--color-border);
+  background: white;
 }
 
 .modalTab {
-  padding: 8px 16px;
+  padding: var(--space-md) var(--space-lg);
   background: transparent;
   border: none;
   border-bottom: 2px solid transparent;
-  color: #8b8374;
-  font-size: 14px;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-base);
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
 }
 
 .modalTab:hover {
-  color: #4a463d;
-  background: #f8f6f0;
-  border-radius: 6px 6px 0 0;
+  color: var(--color-text);
+  background: var(--color-surface);
 }
 
 .modalTab.active {
-  color: #4f7e6e;
-  border-bottom-color: #4f7e6e;
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
+  font-weight: 600;
 }
 
 .modeDropdown {
