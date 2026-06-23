@@ -921,7 +921,7 @@ function App() {
                 className={`modalTab ${settingsTab === "detect" ? "active" : ""}`}
                 onClick={() => setSettingsTab("detect")}
               >
-                检测参数
+                参数配置
               </button>
               <button
                 className={`modalTab ${settingsTab === "ai" ? "active" : ""}`}
@@ -962,6 +962,21 @@ function App() {
                       </select>
                     </label>
                     <label>
+                      <span>最小响度 · {minPeakDbfs} dBFS</span>
+                      <input
+                        type="range"
+                        min="-60"
+                        max="-20"
+                        step="1"
+                        value={minPeakDbfs}
+                        onChange={(event) => setMinPeakDbfs(Number(event.target.value))}
+                      />
+                    </label>
+                  </section>
+
+                  <section className="settingsGroup">
+                    <h3>切片参数</h3>
+                    <label>
                       <span>合并间隔 · {mergeGap.toFixed(1)}s</span>
                       <input
                         type="range"
@@ -983,24 +998,6 @@ function App() {
                         onChange={(event) => setPadSeconds(Number(event.target.value))}
                       />
                     </label>
-                    <label>
-                      <span>最小响度 · {minPeakDbfs} dBFS</span>
-                      <input
-                        type="range"
-                        min="-60"
-                        max="-20"
-                        step="1"
-                        value={minPeakDbfs}
-                        onChange={(event) => setMinPeakDbfs(Number(event.target.value))}
-                      />
-                    </label>
-                  </section>
-
-                  <section className="settingsGroup">
-                    <h3>切片参数</h3>
-                    <p style={{ color: "var(--color-text-secondary)", fontSize: "14px" }}>
-                      切片相关参数将在后续版本中添加
-                    </p>
                   </section>
                 </div>
               )}
@@ -1296,65 +1293,6 @@ function App() {
           </button>
           {!rightCollapsed && (
             <>
-              <div className="paramsSection">
-                <h3>
-                  <ScanLine size={16} />
-                  检测参数
-                </h3>
-                <label>
-                  <span>灵敏度 · {sensitivity === "high" ? "高" : sensitivity === "low" ? "低" : "中"}</span>
-                  <select
-                    value={sensitivity}
-                    onChange={(event) => {
-                      setSensitivity(event.target.value as Sensitivity);
-                      void redetectEvents();
-                    }}
-                  >
-                    <option value="low">低</option>
-                    <option value="medium">中</option>
-                    <option value="high">高</option>
-                  </select>
-                </label>
-                <label>
-                  <span>合并间隔 · {mergeGap.toFixed(1)}s</span>
-                  <input
-                    type="range"
-                    min="0"
-                    max="5"
-                    step="0.1"
-                    value={mergeGap}
-                    onChange={(event) => setMergeGap(Number(event.target.value))}
-                    onMouseUp={() => void redetectEvents()}
-                    onTouchEnd={() => void redetectEvents()}
-                  />
-                </label>
-                <label>
-                  <span>起止缓冲 · {padSeconds.toFixed(1)}s</span>
-                  <input
-                    type="range"
-                    min="0"
-                    max="3"
-                    step="0.1"
-                    value={padSeconds}
-                    onChange={(event) => setPadSeconds(Number(event.target.value))}
-                    onMouseUp={() => void redetectEvents()}
-                    onTouchEnd={() => void redetectEvents()}
-                  />
-                </label>
-                <label>
-                  <span>最小响度 · {minPeakDbfs} dBFS</span>
-                  <input
-                    type="range"
-                    min="-60"
-                    max="-20"
-                    step="1"
-                    value={minPeakDbfs}
-                    onChange={(event) => setMinPeakDbfs(Number(event.target.value))}
-                    onMouseUp={() => void redetectEvents()}
-                    onTouchEnd={() => void redetectEvents()}
-                  />
-                </label>
-              </div>
               <div className="eventSection">
                 <div className="sideHeader">
                   <h3>{selected ? `事件 #${selected.id}` : "未选择事件"}</h3>
