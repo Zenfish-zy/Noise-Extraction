@@ -157,7 +157,7 @@ function App() {
   const [minPeakDbfs, setMinPeakDbfs] = useState(-45);
   const [denoiseEnabled, setDenoiseEnabled] = useState(true);
   const [amplifyEnabled, setAmplifyEnabled] = useState(false);
-  const [sliceEnabled, setSliceEnabled] = useState(true);
+  const [sliceEnabled, setSliceEnabled] = useState(false);
 
   useEffect(() => {
     void invoke<string>("app_version")
@@ -548,6 +548,7 @@ function App() {
               <button
                 className={sliceEnabled ? "activeTool" : ""}
                 onClick={() => setSliceEnabled(!sliceEnabled)}
+                disabled={!inputPath}
               >
                 <Scissors size={17} />
                 智能切片
