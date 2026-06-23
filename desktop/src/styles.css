@@ -247,38 +247,80 @@ button:disabled:hover {
   opacity: 0.28;
 }
 
-.importProgress {
+.progressBanner {
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: rgba(231, 227, 218, 0.6);
+  top: 12px;
+  left: 12px;
+  right: 12px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(60, 90, 120, 0.15);
+  border-radius: 8px;
+  padding: 10px 14px;
+  box-shadow: 0 2px 8px rgba(60, 90, 120, 0.08);
   z-index: 10;
+  animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.progressContent {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.progressIcon {
+  font-size: 16px;
+  animation: spin 2s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.progressLabel {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 500;
+  color: #3c5a78;
+}
+
+.progressPercent {
+  font-size: 12px;
+  font-weight: 600;
+  color: #3c5a78;
+  font-variant-numeric: tabular-nums;
+}
+
+.progressTrack {
+  height: 4px;
+  background: rgba(60, 90, 120, 0.1);
+  border-radius: 999px;
   overflow: hidden;
 }
 
-.progressBar {
-  position: absolute;
-  top: 0;
-  left: 0;
+.progressFill {
   height: 100%;
-  background: linear-gradient(90deg, #3C5A78, #5A8AA3);
+  background: linear-gradient(90deg, #3c5a78, #5a8aa3);
+  border-radius: 999px;
   transition: width 0.3s ease;
-  box-shadow: 0 0 8px rgba(60, 90, 120, 0.4);
-}
-
-.progressText {
-  position: absolute;
-  top: 8px;
-  left: 50%;
-  transform: translateX(-50%);
-  font-size: 12px;
-  color: #3C5A78;
-  font-weight: 500;
-  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.9);
-  pointer-events: none;
-  z-index: 11;
+  box-shadow: 0 0 6px rgba(60, 90, 120, 0.3);
 }
 
 .waveBars {
@@ -519,4 +561,43 @@ select {
   background: #fbfaf6;
   color: #4a463d;
   padding: 6px 9px;
+}
+
+.exportDropdown {
+  position: relative;
+}
+
+.dropdownMenu {
+  position: absolute;
+  bottom: 100%;
+  right: 0;
+  margin-bottom: 8px;
+  min-width: 180px;
+  background: #ffffff;
+  border: 1px solid #e2dbcb;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(74, 70, 61, 0.12);
+  overflow: hidden;
+  z-index: 20;
+}
+
+.dropdownMenu button {
+  display: block;
+  width: 100%;
+  padding: 10px 14px;
+  border: none;
+  background: transparent;
+  color: #4a463d;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.dropdownMenu button:hover {
+  background: #f8f6f0;
+}
+
+.dropdownMenu button:active {
+  background: #f2ede3;
 }

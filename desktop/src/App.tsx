@@ -160,6 +160,7 @@ function App() {
   const [amplifyEnabled, setAmplifyEnabled] = useState(false);
   const [sliceEnabled, setSliceEnabled] = useState(false);
   const [importProgress, setImportProgress] = useState<{ stage: string; percent: number } | null>(null);
+  const [exportMenuOpen, setExportMenuOpen] = useState(false);
 
   useEffect(() => {
     void invoke<string>("app_version")
@@ -179,6 +180,18 @@ function App() {
       void unlisten.then((fn) => fn());
     };
   }, []);
+
+  useEffect(() => {
+    const handleClickOutside = () => {
+      if (exportMenuOpen) {
+        setExportMenuOpen(false);
+      }
+    };
+    if (exportMenuOpen) {
+      document.addEventListener("click", handleClickOutside);
+      return () => document.removeEventListener("click", handleClickOutside);
+    }
+  }, [exportMenuOpen]);
 
   function detectConfig(): DetectConfig {
     return {
@@ -276,6 +289,7 @@ function App() {
   async function refreshPreview(path: string, config = appConfig()) {
     setError(null);
     setStatus("正在刷新预览");
+    setImportProgress({ stage: "正在刷新预览", percent: 30 });
     try {
       const [waveform, preview] = await Promise.all([
         invoke<WaveformResult>("waveform_peaks", {
@@ -288,6 +302,8 @@ function App() {
           config,
         }),
       ]);
+      setImportProgress({ stage: "预览已更新", percent: 100 });
+      setTimeout(() => setImportProgress(null), 800);
       setWaveformBins(waveform.bins);
       setAudioSrc(convertFileSrc(preview.wav_path));
       setIsPlaying(false);
@@ -303,6 +319,7 @@ function App() {
   async function analyzeCurrentAudio(path: string) {
     setError(null);
     setStatus("正在分析音频");
+    setImportProgress({ stage: "正在分析音频", percent: 50 });
     try {
       const result = await invoke<AnalyzeResult>("analyze_audio", {
         inputPath: path,
@@ -314,10 +331,13 @@ function App() {
       setSelectedEventId(mapped[0]?.id ?? 0);
       setFileLabel(path.split(/[\\/]/).pop() ?? path);
       setInputPath(path);
+      setImportProgress({ stage: `分析完成 · ${result.events.length} 段`, percent: 100 });
+      setTimeout(() => setImportProgress(null), 800);
       setStatus(`音频分析完成 · ${result.events.length} 段`);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       setError(message);
+      setImportProgress(null);
       setStatus("音频分析失败");
     }
   }
@@ -337,7 +357,7 @@ function App() {
     await inspectCurrentAudio(selected);
   }
 
-  async function exportEvidence() {
+  async function exportEvidence(exportType: "audio" | "csv" | "both" = "both") {
     setError(null);
     if (!inputPath) {
       setError("请先导入录音文件。");
@@ -356,17 +376,21 @@ function App() {
     }
 
     const base = stripExtension(fileLabel || "noise-evidence");
-    const wavPath = await save({
-      title: "保存导出 WAV",
-      defaultPath: `${base}_${sliceEnabled ? "噪音提取" : "整段处理"}.wav`,
-      filters: [{ name: "WAV 音频", extensions: ["wav"] }],
-    });
-    if (!wavPath) {
-      return;
+
+    let wavPath: string | null = null;
+    if (exportType === "audio" || exportType === "both") {
+      wavPath = await save({
+        title: "保存导出 WAV",
+        defaultPath: `${base}_${sliceEnabled ? "噪音提取" : "整段处理"}.wav`,
+        filters: [{ name: "WAV 音频", extensions: ["wav"] }],
+      });
+      if (!wavPath) {
+        return;
+      }
     }
 
     let csvPath: string | null = null;
-    if (sliceEnabled) {
+    if ((exportType === "csv" || exportType === "both") && sliceEnabled) {
       const selectedCsvPath = await save({
         title: "保存 CSV 证据报告",
         defaultPath: `${base}_证据报告.csv`,
@@ -378,15 +402,22 @@ function App() {
       csvPath = selectedCsvPath;
     }
 
+    if (!wavPath && !csvPath) {
+      return;
+    }
+
     setStatus("正在导出");
+    setImportProgress({ stage: "正在导出音频", percent: 60 });
     try {
       const result = await invoke<ExportResult>("export_audio", {
         inputPath,
-        wavPath,
+        wavPath: wavPath ?? "",
         csvPath,
         config: appConfig(),
         events: sliceEnabled ? events.map(toCoreEvent) : null,
       });
+      setImportProgress({ stage: "导出完成", percent: 100 });
+      setTimeout(() => setImportProgress(null), 800);
       setStatus(
         result.csv_path
           ? `导出完成 · ${result.kept_events} 段 · WAV + CSV`
@@ -395,6 +426,7 @@ function App() {
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       setError(message);
+      setImportProgress(null);
       setStatus("导出失败");
     }
   }
@@ -539,6 +571,7 @@ function App() {
     if (!inputPath) return;
     setError(null);
     setStatus("正在重新检测事件");
+    setImportProgress({ stage: "正在重新检测事件", percent: 50 });
     try {
       const result = await invoke<AnalyzeResult>("analyze_audio", {
         inputPath,
@@ -547,10 +580,13 @@ function App() {
       const mapped = mapCoreEvents(result.events);
       setEvents(mapped);
       setSelectedEventId(mapped[0]?.id ?? 0);
+      setImportProgress({ stage: `检测完成 · ${result.events.length} 段`, percent: 100 });
+      setTimeout(() => setImportProgress(null), 800);
       setStatus(`检测完成 · ${result.events.length} 段`);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       setError(message);
+      setImportProgress(null);
       setStatus("检测失败");
     }
   }
@@ -587,10 +623,6 @@ function App() {
           <button className="primaryButton" onClick={importAudio}>
             <FileAudio size={18} />
             导入录音
-          </button>
-          <button className="ghostButton" onClick={exportEvidence}>
-            <Download size={18} />
-            导出
           </button>
         </div>
       </section>
@@ -668,9 +700,15 @@ function App() {
             }}
           >
             {importProgress && (
-              <div className="importProgress">
-                <div className="progressBar" style={{ width: `${importProgress.percent}%` }} />
-                <span className="progressText">{importProgress.stage}</span>
+              <div className="progressBanner">
+                <div className="progressContent">
+                  <span className="progressIcon">⚙️</span>
+                  <span className="progressLabel">{importProgress.stage}</span>
+                  <span className="progressPercent">{importProgress.percent}%</span>
+                </div>
+                <div className="progressTrack">
+                  <div className="progressFill" style={{ width: `${importProgress.percent}%` }} />
+                </div>
               </div>
             )}
             <div className="waveGrid" />
@@ -888,10 +926,49 @@ function App() {
           <strong>{kept.length} 段保留</strong>
           <span>{exportSummary}</span>
         </div>
-        <button className="primaryButton" onClick={exportEvidence} disabled={!hasInput || (sliceEnabled && events.length === 0)}>
-          <Download size={18} />
-          导出证据
-        </button>
+        <div className="exportDropdown">
+          <button
+            className="primaryButton"
+            onClick={(e) => {
+              e.stopPropagation();
+              setExportMenuOpen(!exportMenuOpen);
+            }}
+            disabled={!hasInput || (sliceEnabled && events.length === 0)}
+          >
+            <Download size={18} />
+            导出
+          </button>
+          {exportMenuOpen && (
+            <div className="dropdownMenu" onClick={(e) => e.stopPropagation()}>
+              <button
+                onClick={() => {
+                  setExportMenuOpen(false);
+                  void exportEvidence("audio");
+                }}
+              >
+                仅导出音频
+              </button>
+              {sliceEnabled && (
+                <button
+                  onClick={() => {
+                    setExportMenuOpen(false);
+                    void exportEvidence("csv");
+                  }}
+                >
+                  仅导出 CSV
+                </button>
+              )}
+              <button
+                onClick={() => {
+                  setExportMenuOpen(false);
+                  void exportEvidence("both");
+                }}
+              >
+                {sliceEnabled ? "导出音频 + CSV" : "导出音频"}
+              </button>
+            </div>
+          )}
+        </div>
       </section>
     </main>
   );
