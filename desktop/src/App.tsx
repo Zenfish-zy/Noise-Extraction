@@ -700,24 +700,61 @@ function App() {
   async function redetectEvents() {
     if (!inputPath) return;
     setError(null);
-    setStatus("正在重新检测事件");
-    setImportProgress({ stage: "正在重新检测事件", percent: 50 });
-    try {
-      const result = await invoke<AnalyzeResult>("analyze_audio", {
-        inputPath,
-        config: appConfig(),
-      });
-      const mapped = mapCoreEvents(result.events);
-      setEvents(mapped);
-      setSelectedEventId(mapped[0]?.id ?? 0);
-      setImportProgress({ stage: `检测完成 · ${result.events.length} 段`, percent: 100 });
-      setTimeout(() => setImportProgress(null), 800);
-      setStatus(`检测完成 · ${result.events.length} 段`);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      setError(message);
-      setImportProgress(null);
-      setStatus("检测失败");
+
+    if (aiEnabled) {
+      // AI 识别模式
+      if (!aiKey) {
+        setError("请先配置 API Key");
+        return;
+      }
+      setStatus("正在使用 AI 识别事件");
+      setImportProgress({ stage: "AI 正在分析音频", percent: 50 });
+      try {
+        // TODO: 调用后端 AI 识别接口
+        // const result = await invoke<AnalyzeResult>("ai_detect_events", {
+        //   inputPath,
+        //   config: appConfig(),
+        // });
+
+        // 临时：调用传统算法 + 提示
+        const result = await invoke<AnalyzeResult>("analyze_audio", {
+          inputPath,
+          config: appConfig(),
+        });
+        const mapped = mapCoreEvents(result.events);
+        setEvents(mapped);
+        setSelectedEventId(mapped[0]?.id ?? 0);
+        setImportProgress({ stage: `AI 识别完成 · ${result.events.length} 段`, percent: 100 });
+        setTimeout(() => setImportProgress(null), 800);
+        setStatus(`AI 识别完成 · ${result.events.length} 段`);
+        setError("注意：AI 识别功能正在开发中，当前使用传统算法");
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        setError(message);
+        setImportProgress(null);
+        setStatus("AI 识别失败");
+      }
+    } else {
+      // 传统算法模式
+      setStatus("正在重新检测事件");
+      setImportProgress({ stage: "正在重新检测事件", percent: 50 });
+      try {
+        const result = await invoke<AnalyzeResult>("analyze_audio", {
+          inputPath,
+          config: appConfig(),
+        });
+        const mapped = mapCoreEvents(result.events);
+        setEvents(mapped);
+        setSelectedEventId(mapped[0]?.id ?? 0);
+        setImportProgress({ stage: `检测完成 · ${result.events.length} 段`, percent: 100 });
+        setTimeout(() => setImportProgress(null), 800);
+        setStatus(`检测完成 · ${result.events.length} 段`);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        setError(message);
+        setImportProgress(null);
+        setStatus("检测失败");
+      }
     }
   }
 
@@ -776,15 +813,19 @@ function App() {
     setImportProgress({ stage: "AI 正在增强音频", percent: 50 });
     try {
       // TODO: 调用后端 AI 音频处理接口
-      // const result = await invoke("ai_process_audio", { inputPath, config: appConfig() });
+      // const result = await invoke("ai_process_audio", {
+      //   inputPath,
+      //   config: appConfig()
+      // });
       // await inspectCurrentAudio(inputPath);
+
+      // 临时：模拟处理
+      await new Promise((resolve) => setTimeout(resolve, 2000));
 
       setImportProgress({ stage: "AI 处理完成", percent: 100 });
       setTimeout(() => setImportProgress(null), 800);
       setStatus("AI 处理完成");
-
-      // 临时提示
-      setError("AI 音频处理功能正在开发中");
+      setError("注意：AI 音频处理功能正在开发中，当前为模拟处理");
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       setError(message);
