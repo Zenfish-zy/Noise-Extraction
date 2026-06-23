@@ -200,6 +200,13 @@ function App() {
   const [aiModel, setAiModel] = useState(() => {
     return localStorage.getItem("aiModel") || "gpt-4o-mini";
   });
+  const [proxyEnabled, setProxyEnabled] = useState(() => {
+    const saved = localStorage.getItem("proxyEnabled");
+    return saved ? JSON.parse(saved) : false;
+  });
+  const [proxyUrl, setProxyUrl] = useState(() => {
+    return localStorage.getItem("proxyUrl") || "";
+  });
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [leftCollapsed, setLeftCollapsed] = useState(false);
   const [rightCollapsed, setRightCollapsed] = useState(false);
@@ -240,6 +247,14 @@ function App() {
   useEffect(() => {
     localStorage.setItem("aiModel", aiModel);
   }, [aiModel]);
+
+  useEffect(() => {
+    localStorage.setItem("proxyEnabled", JSON.stringify(proxyEnabled));
+  }, [proxyEnabled]);
+
+  useEffect(() => {
+    localStorage.setItem("proxyUrl", proxyUrl);
+  }, [proxyUrl]);
 
   // Save detection parameters to localStorage
   useEffect(() => {
@@ -1078,6 +1093,34 @@ function App() {
                           placeholder="gpt-4o-mini"
                         />
                       </label>
+
+                      <div style={{ marginTop: "var(--space-md)", paddingTop: "var(--space-md)", borderTop: "1px solid var(--color-border)" }}>
+                        <label className="toggleSetting">
+                          <span>启用代理 · {proxyEnabled ? "开" : "关"}</span>
+                          <label className="toggleSwitch">
+                            <input
+                              type="checkbox"
+                              checked={proxyEnabled}
+                              onChange={(event) => setProxyEnabled(event.target.checked)}
+                            />
+                            <span className="toggleSlider"></span>
+                          </label>
+                        </label>
+                        {proxyEnabled && (
+                          <label style={{ marginTop: "var(--space-md)" }}>
+                            <span>代理地址</span>
+                            <input
+                              type="text"
+                              value={proxyUrl}
+                              onChange={(event) => setProxyUrl(event.target.value)}
+                              placeholder="http://127.0.0.1:7890 或 socks5://127.0.0.1:1080"
+                            />
+                            <div style={{ fontSize: "13px", color: "var(--color-text-muted)", marginTop: "4px" }}>
+                              支持 HTTP/HTTPS 和 SOCKS5 代理
+                            </div>
+                          </label>
+                        )}
+                      </div>
                     </>
                   )}
                 </section>
