@@ -1,10 +1,10 @@
-# 楼上噪音取证助手
+# 寻音殿
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Rust](https://img.shields.io/badge/rust-2024-orange.svg)
 ![Platform](https://img.shields.io/badge/platform-Windows-blue.svg)
 
-**专业的楼上噪音录音分析与取证工具** — 智能检测、降噪处理、可视化分析、一键导出
+**专业的噪音录音分析与取证工具** — 智能检测、降噪处理、可视化分析、一键导出
 
 > 基于 **Rust + Tauri** 构建，高性能、低资源占用、原生体验
 
@@ -49,7 +49,7 @@
 1. 下载最新版本的安装包：  
    👉 [Releases](https://github.com/Zenfish-zy/Noise-Extraction/releases)
 
-2. 双击 `楼上噪音取证助手_*_x64-setup.exe` 运行安装向导
+2. 双击 `寻音殿_*_x64-setup.exe` 运行安装向导
 
 3. 安装完成后，从开始菜单启动应用
 
@@ -80,8 +80,8 @@ pnpm tauri build
 ```
 
 构建产物位于：
-- **可执行文件**: `desktop/src-tauri/target/release/noise-evidence-next.exe`
-- **安装包**: `desktop/src-tauri/target/release/bundle/nsis/*.exe`
+- **可执行文件**: `desktop/src-tauri/target/release/soundhunter.exe`
+- **安装包**: `desktop/src-tauri/target/release/bundle/nsis/寻音殿_*_x64-setup.exe`
 
 ---
 
