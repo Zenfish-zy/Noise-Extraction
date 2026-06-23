@@ -1,4 +1,4 @@
-# Python-generated files
+# Python-generated files (archived)
 __pycache__/
 *.py[oc]
 build/
@@ -14,10 +14,20 @@ htmlcov/
 # Virtual environments
 .venv
 .venv/
+
+# Node.js
 node_modules/
+
+# Rust build artifacts
 target/
-next/target/
-next/desktop/src-tauri/gen/
+desktop/src-tauri/target/
+desktop/src-tauri/gen/
+Cargo.lock.bak
+desktop/src-tauri/Cargo.lock.bak
+
+# Tauri build cache
+desktop/.vite/
+desktop/dist/
 
 # Local recordings and exported evidence
 *.m4a
@@ -32,3 +42,6 @@ next/desktop/src-tauri/gen/
 import_times.txt
 ui_check.png
 UI.jpg
+
+# Temporary directories from migration
+next/
