@@ -161,10 +161,21 @@ function App() {
   const [inputPath, setInputPath] = useState<string | null>(null);
   const [status, setStatus] = useState("请先导入录音文件");
   const [error, setError] = useState<string | null>(null);
-  const [sensitivity, setSensitivity] = useState<Sensitivity>("medium");
-  const [mergeGap, setMergeGap] = useState(0.8);
-  const [padSeconds, setPadSeconds] = useState(0.6);
-  const [minPeakDbfs, setMinPeakDbfs] = useState(-45);
+  const [sensitivity, setSensitivity] = useState<Sensitivity>(() => {
+    return (localStorage.getItem("sensitivity") as Sensitivity) || "medium";
+  });
+  const [mergeGap, setMergeGap] = useState(() => {
+    const saved = localStorage.getItem("mergeGap");
+    return saved ? Number(saved) : 0.8;
+  });
+  const [padSeconds, setPadSeconds] = useState(() => {
+    const saved = localStorage.getItem("padSeconds");
+    return saved ? Number(saved) : 0.6;
+  });
+  const [minPeakDbfs, setMinPeakDbfs] = useState(() => {
+    const saved = localStorage.getItem("minPeakDbfs");
+    return saved ? Number(saved) : -45;
+  });
   const [denoiseEnabled, setDenoiseEnabled] = useState(true);
   const [amplifyEnabled, setAmplifyEnabled] = useState(false);
   const [sliceEnabled, setSliceEnabled] = useState(false);
@@ -173,6 +184,12 @@ function App() {
   const [aiEnabled, setAiEnabled] = useState(() => {
     const saved = localStorage.getItem("aiEnabled");
     return saved ? JSON.parse(saved) : false;
+  });
+  const [aiFormat, setAiFormat] = useState<"openai" | "anthropic" | "custom">(() => {
+    return (localStorage.getItem("aiFormat") as "openai" | "anthropic" | "custom") || "openai";
+  });
+  const [aiBaseUrl, setAiBaseUrl] = useState(() => {
+    return localStorage.getItem("aiBaseUrl") || "https://api.openai.com";
   });
   const [aiEndpoint, setAiEndpoint] = useState(() => {
     return localStorage.getItem("aiEndpoint") || "https://api.openai.com/v1/chat/completions";
@@ -187,7 +204,7 @@ function App() {
   const [leftCollapsed, setLeftCollapsed] = useState(false);
   const [rightCollapsed, setRightCollapsed] = useState(false);
   const [modeMenuOpen, setModeMenuOpen] = useState(false);
-  const [settingsTab, setSettingsTab] = useState<"detect" | "ai" | "export" | "ui" | "about">("detect");
+  const [settingsTab, setSettingsTab] = useState<"ai" | "export" | "about">("ai");
 
   // Save AI settings to localStorage
   useEffect(() => {
@@ -195,8 +212,26 @@ function App() {
   }, [aiEnabled]);
 
   useEffect(() => {
-    localStorage.setItem("aiEndpoint", aiEndpoint);
-  }, [aiEndpoint]);
+    localStorage.setItem("aiFormat", aiFormat);
+  }, [aiFormat]);
+
+  useEffect(() => {
+    localStorage.setItem("aiBaseUrl", aiBaseUrl);
+  }, [aiBaseUrl]);
+
+  useEffect(() => {
+    // Auto-complete endpoint based on format
+    let fullEndpoint = "";
+    if (aiFormat === "openai") {
+      fullEndpoint = `${aiBaseUrl.replace(/\/$/, "")}/v1/chat/completions`;
+    } else if (aiFormat === "anthropic") {
+      fullEndpoint = `${aiBaseUrl.replace(/\/$/, "")}/v1/messages`;
+    } else {
+      fullEndpoint = aiBaseUrl; // custom: no auto-complete
+    }
+    setAiEndpoint(fullEndpoint);
+    localStorage.setItem("aiEndpoint", fullEndpoint);
+  }, [aiFormat, aiBaseUrl]);
 
   useEffect(() => {
     localStorage.setItem("aiKey", aiKey);
@@ -205,6 +240,23 @@ function App() {
   useEffect(() => {
     localStorage.setItem("aiModel", aiModel);
   }, [aiModel]);
+
+  // Save detection parameters to localStorage
+  useEffect(() => {
+    localStorage.setItem("sensitivity", sensitivity);
+  }, [sensitivity]);
+
+  useEffect(() => {
+    localStorage.setItem("mergeGap", String(mergeGap));
+  }, [mergeGap]);
+
+  useEffect(() => {
+    localStorage.setItem("padSeconds", String(padSeconds));
+  }, [padSeconds]);
+
+  useEffect(() => {
+    localStorage.setItem("minPeakDbfs", String(minPeakDbfs));
+  }, [minPeakDbfs]);
 
   useEffect(() => {
     void invoke<string>("app_version")
@@ -813,12 +865,6 @@ function App() {
 
             <div className="modalTabs">
               <button
-                className={`modalTab ${settingsTab === "detect" ? "active" : ""}`}
-                onClick={() => setSettingsTab("detect")}
-              >
-                检测
-              </button>
-              <button
                 className={`modalTab ${settingsTab === "ai" ? "active" : ""}`}
                 onClick={() => setSettingsTab("ai")}
               >
@@ -839,58 +885,6 @@ function App() {
             </div>
 
             <div className="modalBody">
-              {settingsTab === "detect" && (
-                <section className="settingsGroup">
-                  <h3>检测参数</h3>
-                  <label>
-                    <span>灵敏度 · {sensitivity === "high" ? "高" : sensitivity === "low" ? "低" : "中"}</span>
-                    <select
-                      value={sensitivity}
-                      onChange={(event) => {
-                        setSensitivity(event.target.value as Sensitivity);
-                      }}
-                    >
-                      <option value="low">低</option>
-                      <option value="medium">中</option>
-                      <option value="high">高</option>
-                    </select>
-                  </label>
-                <label>
-                  <span>合并间隔 · {mergeGap.toFixed(1)}s</span>
-                  <input
-                    type="range"
-                    min="0"
-                    max="5"
-                    step="0.1"
-                    value={mergeGap}
-                    onChange={(event) => setMergeGap(Number(event.target.value))}
-                  />
-                </label>
-                <label>
-                  <span>起止缓冲 · {padSeconds.toFixed(1)}s</span>
-                  <input
-                    type="range"
-                    min="0"
-                    max="3"
-                    step="0.1"
-                    value={padSeconds}
-                    onChange={(event) => setPadSeconds(Number(event.target.value))}
-                  />
-                </label>
-                <label>
-                  <span>最小响度 · {minPeakDbfs} dBFS</span>
-                  <input
-                    type="range"
-                    min="-60"
-                    max="-20"
-                    step="1"
-                    value={minPeakDbfs}
-                    onChange={(event) => setMinPeakDbfs(Number(event.target.value))}
-                  />
-                </label>
-              </section>
-              )}
-
               {settingsTab === "ai" && (
                 <section className="settingsGroup">
                   <h3>AI 增强识别</h3>
@@ -908,14 +902,42 @@ function App() {
                   {aiEnabled && (
                     <>
                       <label>
-                        <span>API 端点</span>
+                        <span>API 格式</span>
+                        <select
+                          value={aiFormat}
+                          onChange={(event) => setAiFormat(event.target.value as "openai" | "anthropic" | "custom")}
+                        >
+                          <option value="openai">OpenAI 格式 (自动补全 /v1/chat/completions)</option>
+                          <option value="anthropic">Anthropic 格式 (自动补全 /v1/messages)</option>
+                          <option value="custom">自定义格式 (完整 URL)</option>
+                        </select>
+                      </label>
+                      <label>
+                        <span>{aiFormat === "custom" ? "完整端点 URL" : "Base URL"}</span>
                         <input
                           type="text"
-                          value={aiEndpoint}
-                          onChange={(event) => setAiEndpoint(event.target.value)}
-                          placeholder="https://api.openai.com/v1/chat/completions"
+                          value={aiFormat === "custom" ? aiEndpoint : aiBaseUrl}
+                          onChange={(event) => {
+                            if (aiFormat === "custom") {
+                              setAiEndpoint(event.target.value);
+                            } else {
+                              setAiBaseUrl(event.target.value);
+                            }
+                          }}
+                          placeholder={
+                            aiFormat === "openai"
+                              ? "https://api.openai.com"
+                              : aiFormat === "anthropic"
+                                ? "https://api.anthropic.com"
+                                : "https://your-api.com/v1/chat/completions"
+                          }
                         />
                       </label>
+                      {aiFormat !== "custom" && (
+                        <div style={{ fontSize: "13px", color: "var(--color-text-muted)", marginTop: "-8px" }}>
+                          完整端点：{aiEndpoint}
+                        </div>
+                      )}
                       <label>
                         <span>API Key</span>
                         <input
