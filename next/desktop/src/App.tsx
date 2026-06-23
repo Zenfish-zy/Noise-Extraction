@@ -260,6 +260,26 @@ function App() {
     };
   }
 
+  async function inspectCurrentAudio(path: string) {
+    setError(null);
+    setStatus("正在读取音频信息");
+    try {
+      const result = await invoke<AnalyzeResult>("inspect_audio", {
+        inputPath: path,
+      });
+      setAnalysis(result);
+      setEvents([]);
+      setSelectedEventId(0);
+      setFileLabel(path.split(/[\\/]/).pop() ?? path);
+      setInputPath(path);
+      setStatus("录音已导入 · 请配置参数后检测");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      setError(message);
+      setStatus("录音导入失败");
+    }
+  }
+
   async function analyzeCurrentAudio(path: string) {
     setError(null);
     setStatus("正在分析音频");
@@ -294,7 +314,7 @@ function App() {
       return;
     }
 
-    await analyzeCurrentAudio(selected);
+    await inspectCurrentAudio(selected);
   }
 
   async function exportEvidence() {
@@ -302,6 +322,11 @@ function App() {
     if (!inputPath) {
       setError("请先导入录音文件。");
       setStatus("等待导入录音");
+      return;
+    }
+    if (mode === "highlight" && events.length === 0) {
+      setError("请先点击「检测事件」，再导出智能切片合集。");
+      setStatus("等待检测事件");
       return;
     }
     if (mode === "highlight" && events.every((event) => !event.keep)) {
@@ -434,7 +459,7 @@ function App() {
   const kept = events.filter((event) => event.keep);
   const keptSeconds = kept.reduce((sum, event) => sum + event.end - event.start, 0);
   const durationSeconds = Math.max(analysis?.duration_seconds ?? 70, 1);
-  const selected = events.find((event) => event.id === selectedEventId) ?? events[0] ?? fallbackEvents[0];
+  const selected = events.find((event) => event.id === selectedEventId) ?? events[0] ?? null;
   const dragLeft = dragSpan ? (Math.min(dragSpan.start, dragSpan.end) / durationSeconds) * 100 : 0;
   const dragWidth = dragSpan ? (Math.abs(dragSpan.end - dragSpan.start) / durationSeconds) * 100 : 0;
   const exportSummary =
@@ -553,7 +578,7 @@ function App() {
             {events.map((event) => (
               <div
                 key={event.id}
-                className={`eventBlock ${event.keep ? "" : "muted"} ${event.id === selected.id ? "selected" : ""}`}
+                className={`eventBlock ${event.keep ? "" : "muted"} ${event.id === selected?.id ? "selected" : ""}`}
                 style={{
                   left: `${(event.start / durationSeconds) * 100}%`,
                   width: `${((event.end - event.start) / durationSeconds) * 100}%`,
@@ -578,7 +603,7 @@ function App() {
             </div>
             {events.map((event) => (
               <div
-                className={`tableRow ${event.id === selected.id ? "selected" : ""}`}
+                className={`tableRow ${event.id === selected?.id ? "selected" : ""}`}
                 role="row"
                 key={event.id}
                 onClick={() => setSelectedEventId(event.id)}
@@ -616,27 +641,31 @@ function App() {
 
         <aside className="sidePanel" aria-label="当前事件">
           <div className="sideHeader">
-            <h2>事件 #{selected.id}</h2>
+            <h2>{selected ? `事件 #${selected.id}` : "未选择事件"}</h2>
             <button className="iconButton" aria-label="事件说明">
               <Info size={16} />
             </button>
           </div>
-          <dl className="detailList">
-            <div>
-              <dt>时间</dt>
-              <dd>
-                {formatTime(selected.start)} - {formatTime(selected.end)}
-              </dd>
-            </div>
-            <div>
-              <dt>类型</dt>
-              <dd>{kindLabel[selected.kind]}</dd>
-            </div>
-            <div>
-              <dt>峰值</dt>
-              <dd>{selected.peak_dbfs.toFixed(1)} dBFS</dd>
-            </div>
-          </dl>
+          {selected ? (
+            <dl className="detailList">
+              <div>
+                <dt>时间</dt>
+                <dd>
+                  {formatTime(selected.start)} - {formatTime(selected.end)}
+                </dd>
+              </div>
+              <div>
+                <dt>类型</dt>
+                <dd>{kindLabel[selected.kind]}</dd>
+              </div>
+              <div>
+                <dt>峰值</dt>
+                <dd>{selected.peak_dbfs.toFixed(1)} dBFS</dd>
+              </div>
+            </dl>
+          ) : (
+            <div className="emptyState">暂无事件</div>
+          )}
           <div className="settingsBox">
             <label>
               <span>灵敏度 · {sensitivity === "high" ? "高" : sensitivity === "low" ? "低" : "中"}</span>

@@ -29,6 +29,16 @@ fn analyze_synthetic() -> AnalyzeResult {
 }
 
 #[tauri::command]
+fn inspect_audio(input_path: String) -> Result<AnalyzeResult, String> {
+    let audio = noise_io::load_audio_mono(&input_path).map_err(|err| err.to_string())?;
+    Ok(AnalyzeResult {
+        samplerate: audio.samplerate,
+        duration_seconds: audio.duration_seconds,
+        events: Vec::new(),
+    })
+}
+
+#[tauri::command]
 fn analyze_audio(input_path: String, detect: DetectConfig) -> Result<AnalyzeResult, String> {
     let audio = noise_io::load_audio_mono(&input_path).map_err(|err| err.to_string())?;
     let events = noise_core::detect_events(&audio.samples, audio.samplerate, &detect);
@@ -130,6 +140,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             app_version,
             analyze_synthetic,
+            inspect_audio,
             analyze_audio,
             manual_event,
             export_audio
@@ -154,6 +165,7 @@ mod tests {
         let _cleanup = TempFiles::new([&input_path, &wav_path, &csv_path]);
 
         noise_io::save_wav_mono(&input_path, &[0.5; 16_000], 8_000).unwrap();
+        let inspected = inspect_audio(path_string(&input_path)).unwrap();
         let result = export_audio(
             path_string(&input_path),
             path_string(&wav_path),
@@ -169,6 +181,8 @@ mod tests {
         let exported = noise_io::load_audio_mono(&wav_path).unwrap();
         let csv = fs::read_to_string(&csv_path).unwrap();
 
+        assert_eq!(inspected.samplerate, 8_000);
+        assert!(inspected.events.is_empty());
         assert_eq!(result.kept_events, 1);
         assert!((result.duration_seconds - 0.25).abs() < 0.01);
         assert!((exported.duration_seconds - 0.25).abs() < 0.01);

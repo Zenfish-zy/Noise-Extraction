@@ -350,6 +350,16 @@ button:disabled:hover {
   margin: 16px 0;
 }
 
+.emptyState {
+  display: grid;
+  place-items: center;
+  min-height: 112px;
+  margin: 16px 0;
+  border: 1px dashed #d7cfbe;
+  border-radius: 8px;
+  color: #8b8374;
+}
+
 .detailList div {
   display: flex;
   justify-content: space-between;

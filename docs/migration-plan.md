@@ -136,4 +136,5 @@ Exit criteria:
 - [x] Wire frontend save dialogs to Tauri/Rust export.
 - [x] Support common input formats in the next backend and frontend picker.
 - [x] Wire reviewed event keep/delete/manual state into next export.
+- [x] Split next import/preprocess from manual event detection.
 - [ ] Add parity fixtures against Python reference output.

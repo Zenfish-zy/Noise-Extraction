@@ -81,7 +81,8 @@ The next-generation implementation uses JSON contracts to compare Python referen
 Current next-generation support:
 
 - `noise-cli analyze-audio --input <audio> --config <json>` reads local audio files.
-- Tauri command `analyze_audio(input_path, detect)` reads local audio files selected by the frontend dialog.
+- Tauri command `inspect_audio(input_path)` reads local audio metadata for import/preprocess state and returns an `AnalyzeResult` with an empty `events` list.
+- Tauri command `analyze_audio(input_path, detect)` runs event detection only after the frontend explicitly triggers detection.
 - Supported input families are currently handled through Symphonia: `m4a/mp4/aac`, `mp3`, `wav`, `flac`, `ogg/oga`.
 - Audio is decoded to mono `f32`; multichannel files are averaged per frame.
 - `noise-cli export-audio --input <audio> --output <wav> --config <json> [--csv <report.csv>]` writes a WAV export and, in highlight mode, an optional CSV report.
