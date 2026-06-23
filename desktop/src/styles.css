@@ -169,9 +169,18 @@ button:disabled:hover {
 
 .workspace {
   display: grid;
-  grid-template-columns: 176px minmax(0, 1fr) 300px;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   gap: 14px;
   min-height: 0;
+  position: relative;
+}
+
+.workspace.leftCollapsed {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
+.workspace.rightCollapsed {
+  grid-template-columns: auto minmax(0, 1fr) auto;
 }
 
 .flowRail,
@@ -183,7 +192,61 @@ button:disabled:hover {
 }
 
 .flowRail {
+  width: 176px;
   padding: 10px;
+  transition: width 0.3s ease, transform 0.3s ease;
+  position: relative;
+}
+
+.flowRail.collapsed {
+  width: 48px;
+}
+
+.flowRail .collapseToggle {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: transparent;
+  border: none;
+  color: #8b8374;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+.flowRail .collapseToggle:hover {
+  background: #f0ede6;
+}
+
+.sidePanel {
+  width: 300px;
+  display: flex;
+  flex-direction: column;
+  transition: width 0.3s ease, transform 0.3s ease;
+  position: relative;
+}
+
+.sidePanel.collapsed {
+  width: 48px;
+}
+
+.sidePanel .collapseToggle {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background: transparent;
+  border: none;
+  color: #8b8374;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: background 0.2s;
+  z-index: 10;
+}
+
+.sidePanel .collapseToggle:hover {
+  background: #f0ede6;
 }
 
 .step {
@@ -753,4 +816,80 @@ input[type="password"]::placeholder {
   gap: 10px;
   padding: 16px 20px;
   border-top: 1px solid #e7e3da;
+}
+
+.paramsSection {
+  padding: 16px;
+  border-bottom: 1px solid #e7e3da;
+  overflow-y: auto;
+}
+
+.paramsSection h3 {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #4a463d;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.paramsSection label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.paramsSection label span {
+  font-size: 13px;
+  font-weight: 500;
+  color: #6b7077;
+}
+
+.sidePanel.collapsed .paramsSection,
+.sidePanel.collapsed .eventSection {
+  display: none;
+}
+
+.modalTabs {
+  display: flex;
+  gap: 4px;
+  padding: 12px 16px 0 16px;
+  border-bottom: 1px solid #e7e3da;
+}
+
+.modalTab {
+  padding: 8px 16px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: #8b8374;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.modalTab:hover {
+  color: #4a463d;
+  background: #f8f6f0;
+  border-radius: 6px 6px 0 0;
+}
+
+.modalTab.active {
+  color: #4f7e6e;
+  border-bottom-color: #4f7e6e;
+}
+
+.modeDropdown {
+  position: relative;
+  display: inline-block;
+}
+
+.modeDropdown .dropdownMenu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 4px;
 }

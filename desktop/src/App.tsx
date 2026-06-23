@@ -175,12 +175,27 @@ function App() {
   const [aiKey, setAiKey] = useState("");
   const [aiModel, setAiModel] = useState("gpt-4o-mini");
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [leftCollapsed, setLeftCollapsed] = useState(false);
+  const [rightCollapsed, setRightCollapsed] = useState(false);
+  const [modeMenuOpen, setModeMenuOpen] = useState(false);
+  const [settingsTab, setSettingsTab] = useState<"detect" | "ai" | "export" | "ui" | "about">("detect");
 
   useEffect(() => {
     void invoke<string>("app_version")
       .then(setVersion)
       .catch(() => undefined);
   }, []);
+
+  useEffect(() => {
+    const handleClickOutside = () => {
+      setModeMenuOpen(false);
+      setExportMenuOpen(false);
+    };
+    if (modeMenuOpen || exportMenuOpen) {
+      document.addEventListener("click", handleClickOutside);
+      return () => document.removeEventListener("click", handleClickOutside);
+    }
+  }, [modeMenuOpen, exportMenuOpen]);
 
   useEffect(() => {
     const unlisten = listen<{ stage: string; percent: number }>("import_progress", (event) => {
@@ -587,6 +602,26 @@ function App() {
     }
   }
 
+  async function changeMode(newMode: "full_denoise" | "full_amplify" | "highlight") {
+    setModeMenuOpen(false);
+    if (newMode === "full_denoise") {
+      setDenoiseEnabled(true);
+      setAmplifyEnabled(false);
+      setSliceEnabled(false);
+    } else if (newMode === "full_amplify") {
+      setDenoiseEnabled(false);
+      setAmplifyEnabled(true);
+      setSliceEnabled(false);
+    } else {
+      setDenoiseEnabled(false);
+      setAmplifyEnabled(false);
+      setSliceEnabled(true);
+    }
+    if (inputPath) {
+      await refreshPreview(inputPath);
+    }
+  }
+
   async function redetectEvents() {
     if (!inputPath) return;
     setError(null);
@@ -680,6 +715,52 @@ function App() {
             <FileAudio size={18} />
             导入录音
           </button>
+
+          <div className="modeDropdown">
+            <button
+              className="ghostButton"
+              onClick={(e) => {
+                e.stopPropagation();
+                setModeMenuOpen(!modeMenuOpen);
+              }}
+            >
+              <Volume2 size={18} />
+              {sliceEnabled ? "智能切片" : denoiseEnabled ? "整段滤噪" : "整段放大"} ▼
+            </button>
+            {modeMenuOpen && (
+              <div className="dropdownMenu" onClick={(e) => e.stopPropagation()}>
+                <button onClick={() => void changeMode("full_denoise")}>
+                  整段滤噪
+                </button>
+                <button onClick={() => void changeMode("full_amplify")}>
+                  整段放大
+                </button>
+                <button onClick={() => void changeMode("highlight")}>
+                  智能切片
+                </button>
+              </div>
+            )}
+          </div>
+
+          <button
+            className="ghostButton"
+            onClick={() => void redetectEvents()}
+            disabled={!inputPath}
+          >
+            <ScanLine size={18} />
+            检测事件
+          </button>
+
+          <button
+            className="ghostButton"
+            onClick={() => void aiEnhanceEvents()}
+            disabled={!inputPath || events.length === 0 || !aiEnabled}
+            title={!aiEnabled ? "请先在设置中开启 AI 识别" : "使用 AI 重新分类事件类型"}
+          >
+            <Sparkles size={18} />
+            AI 增强
+          </button>
+
           <button
             className="ghostButton"
             onClick={() => setSettingsOpen(true)}
@@ -701,32 +782,50 @@ function App() {
               </button>
             </div>
 
+            <div className="modalTabs">
+              <button
+                className={`modalTab ${settingsTab === "detect" ? "active" : ""}`}
+                onClick={() => setSettingsTab("detect")}
+              >
+                检测
+              </button>
+              <button
+                className={`modalTab ${settingsTab === "ai" ? "active" : ""}`}
+                onClick={() => setSettingsTab("ai")}
+              >
+                AI
+              </button>
+              <button
+                className={`modalTab ${settingsTab === "export" ? "active" : ""}`}
+                onClick={() => setSettingsTab("export")}
+              >
+                导出
+              </button>
+              <button
+                className={`modalTab ${settingsTab === "about" ? "active" : ""}`}
+                onClick={() => setSettingsTab("about")}
+              >
+                关于
+              </button>
+            </div>
+
             <div className="modalBody">
-              <section className="settingsGroup">
-                <h3>检测参数</h3>
-                <label className="toggleSetting">
-                  <span>智能切片 · {sliceEnabled ? "开" : "关"}</span>
-                  <input
-                    type="checkbox"
-                    checked={sliceEnabled}
-                    onChange={(event) => {
-                      void changeSliceEnabled(event.target.checked);
-                    }}
-                  />
-                </label>
-                <label>
-                  <span>灵敏度 · {sensitivity === "high" ? "高" : sensitivity === "low" ? "低" : "中"}</span>
-                  <select
-                    value={sensitivity}
-                    onChange={(event) => {
-                      setSensitivity(event.target.value as Sensitivity);
-                    }}
-                  >
-                    <option value="low">低</option>
-                    <option value="medium">中</option>
-                    <option value="high">高</option>
-                  </select>
-                </label>
+              {settingsTab === "detect" && (
+                <section className="settingsGroup">
+                  <h3>检测参数</h3>
+                  <label>
+                    <span>灵敏度 · {sensitivity === "high" ? "高" : sensitivity === "low" ? "低" : "中"}</span>
+                    <select
+                      value={sensitivity}
+                      onChange={(event) => {
+                        setSensitivity(event.target.value as Sensitivity);
+                      }}
+                    >
+                      <option value="low">低</option>
+                      <option value="medium">中</option>
+                      <option value="high">高</option>
+                    </select>
+                  </label>
                 <label>
                   <span>合并间隔 · {mergeGap.toFixed(1)}s</span>
                   <input
@@ -761,49 +860,75 @@ function App() {
                   />
                 </label>
               </section>
+              )}
 
-              <section className="settingsGroup">
-                <h3>AI 增强识别</h3>
-                <label className="toggleSetting">
-                  <span>AI 识别 · {aiEnabled ? "开" : "关"}</span>
-                  <input
-                    type="checkbox"
-                    checked={aiEnabled}
-                    onChange={(event) => setAiEnabled(event.target.checked)}
-                  />
-                </label>
-                {aiEnabled && (
-                  <>
-                    <label>
-                      <span>API 端点</span>
-                      <input
-                        type="text"
-                        value={aiEndpoint}
-                        onChange={(event) => setAiEndpoint(event.target.value)}
-                        placeholder="https://api.openai.com/v1/chat/completions"
-                      />
-                    </label>
-                    <label>
-                      <span>API Key</span>
-                      <input
-                        type="password"
-                        value={aiKey}
-                        onChange={(event) => setAiKey(event.target.value)}
-                        placeholder="sk-..."
-                      />
-                    </label>
-                    <label>
-                      <span>模型</span>
-                      <input
-                        type="text"
-                        value={aiModel}
-                        onChange={(event) => setAiModel(event.target.value)}
-                        placeholder="gpt-4o-mini"
-                      />
-                    </label>
-                  </>
-                )}
-              </section>
+              {settingsTab === "ai" && (
+                <section className="settingsGroup">
+                  <h3>AI 增强识别</h3>
+                  <label className="toggleSetting">
+                    <span>AI 识别 · {aiEnabled ? "开" : "关"}</span>
+                    <input
+                      type="checkbox"
+                      checked={aiEnabled}
+                      onChange={(event) => setAiEnabled(event.target.checked)}
+                    />
+                  </label>
+                  {aiEnabled && (
+                    <>
+                      <label>
+                        <span>API 端点</span>
+                        <input
+                          type="text"
+                          value={aiEndpoint}
+                          onChange={(event) => setAiEndpoint(event.target.value)}
+                          placeholder="https://api.openai.com/v1/chat/completions"
+                        />
+                      </label>
+                      <label>
+                        <span>API Key</span>
+                        <input
+                          type="password"
+                          value={aiKey}
+                          onChange={(event) => setAiKey(event.target.value)}
+                          placeholder="sk-..."
+                        />
+                      </label>
+                      <label>
+                        <span>模型</span>
+                        <input
+                          type="text"
+                          value={aiModel}
+                          onChange={(event) => setAiModel(event.target.value)}
+                          placeholder="gpt-4o-mini"
+                        />
+                      </label>
+                    </>
+                  )}
+                </section>
+              )}
+
+              {settingsTab === "export" && (
+                <section className="settingsGroup">
+                  <h3>导出设置</h3>
+                  <p style={{ color: "#8b8374", fontSize: "14px" }}>导出相关配置将在后续版本中添加</p>
+                </section>
+              )}
+
+              {settingsTab === "about" && (
+                <section className="settingsGroup">
+                  <h3>关于寻音殿</h3>
+                  <dl style={{ fontSize: "14px", lineHeight: "1.8" }}>
+                    <div>
+                      <dt style={{ fontWeight: "600", color: "#4a463d" }}>版本</dt>
+                      <dd style={{ color: "#6b7077", marginLeft: "0" }}>{version}</dd>
+                    </div>
+                    <div style={{ marginTop: "12px" }}>
+                      <dt style={{ fontWeight: "600", color: "#4a463d" }}>描述</dt>
+                      <dd style={{ color: "#6b7077", marginLeft: "0" }}>智能噪音检测与分类工具</dd>
+                    </div>
+                  </dl>
+                </section>
+              )}
             </div>
 
             <div className="modalFooter">
@@ -826,12 +951,19 @@ function App() {
             onEnded={() => setIsPlaying(false)}
           />
         ) : null}
-        <aside className="flowRail" aria-label="流程">
-          <Step active={hasInput} icon={<FileAudio size={18} />} label="导入" value={hasInput ? "已加载" : "待导入"} />
-          <Step active={hasInput} icon={<Settings2 size={18} />} label="预处理" value={hasInput ? (denoiseEnabled ? "滤底噪" : "原始") : "待处理"} />
-          <Step active={events.length > 0} icon={<ScanLine size={18} />} label="检测" value={hasInput ? `${events.length} 段` : "待检测"} />
-          <Step active={kept.length > 0} icon={<ListChecks size={18} />} label="复核" value={`${kept.length} 保留`} />
-          <Step icon={<Download size={18} />} label="导出" value="待确认" />
+        <aside className={`flowRail ${leftCollapsed ? "collapsed" : ""}`} aria-label="流程">
+          <button className="collapseToggle" onClick={() => setLeftCollapsed(!leftCollapsed)} aria-label="折叠面板">
+            {leftCollapsed ? "›" : "‹"}
+          </button>
+          {!leftCollapsed && (
+            <>
+              <Step active={hasInput} icon={<FileAudio size={18} />} label="导入" value={hasInput ? "已加载" : "待导入"} />
+              <Step active={hasInput} icon={<Settings2 size={18} />} label="预处理" value={hasInput ? (denoiseEnabled ? "滤底噪" : "原始") : "待处理"} />
+              <Step active={events.length > 0} icon={<ScanLine size={18} />} label="检测" value={hasInput ? `${events.length} 段` : "待检测"} />
+              <Step active={kept.length > 0} icon={<ListChecks size={18} />} label="复核" value={`${kept.length} 保留`} />
+              <Step icon={<Download size={18} />} label="导出" value="待确认" />
+            </>
+          )}
         </aside>
 
         <section className="mainPanel">
@@ -844,27 +976,6 @@ function App() {
               <button onClick={() => void togglePlayback()} disabled={!audioSrc}>
                 {isPlaying ? <Pause size={17} /> : <Play size={17} />}
                 {isPlaying ? "暂停" : "播放"}
-              </button>
-              <button
-                onClick={() => {
-                  if (inputPath) {
-                    void analyzeCurrentAudio(inputPath);
-                  }
-                }}
-                disabled={!inputPath}
-              >
-                <ScanLine size={17} />
-                检测事件
-              </button>
-              <button
-                onClick={() => {
-                  void aiEnhanceEvents();
-                }}
-                disabled={!inputPath || events.length === 0 || !aiEnabled}
-                title={!aiEnabled ? "请先开启 AI 识别" : "使用 AI 重新分类事件类型"}
-              >
-                <Sparkles size={17} />
-                AI 增强
               </button>
               <button
                 className={selectingSpan ? "activeTool" : ""}
@@ -1000,35 +1111,101 @@ function App() {
           </div>
         </section>
 
-        <aside className="sidePanel" aria-label="事件详情">
-          <div className="eventSection">
-            <div className="sideHeader">
-              <h3>{selected ? `事件 #${selected.id}` : "未选择事件"}</h3>
-              <button className="iconButton" aria-label="事件说明">
-                <Info size={16} />
-              </button>
-            </div>
-            {selected ? (
-              <dl className="detailList">
-                <div>
-                  <dt>时间</dt>
-                  <dd>
-                    {formatTime(selected.start)} - {formatTime(selected.end)}
-                  </dd>
+        <aside className={`sidePanel ${rightCollapsed ? "collapsed" : ""}`} aria-label="参数与事件">
+          <button className="collapseToggle" onClick={() => setRightCollapsed(!rightCollapsed)} aria-label="折叠面板">
+            {rightCollapsed ? "‹" : "›"}
+          </button>
+          {!rightCollapsed && (
+            <>
+              <div className="paramsSection">
+                <h3>
+                  <ScanLine size={16} />
+                  检测参数
+                </h3>
+                <label>
+                  <span>灵敏度 · {sensitivity === "high" ? "高" : sensitivity === "low" ? "低" : "中"}</span>
+                  <select
+                    value={sensitivity}
+                    onChange={(event) => {
+                      setSensitivity(event.target.value as Sensitivity);
+                      void redetectEvents();
+                    }}
+                  >
+                    <option value="low">低</option>
+                    <option value="medium">中</option>
+                    <option value="high">高</option>
+                  </select>
+                </label>
+                <label>
+                  <span>合并间隔 · {mergeGap.toFixed(1)}s</span>
+                  <input
+                    type="range"
+                    min="0"
+                    max="5"
+                    step="0.1"
+                    value={mergeGap}
+                    onChange={(event) => setMergeGap(Number(event.target.value))}
+                    onMouseUp={() => void redetectEvents()}
+                    onTouchEnd={() => void redetectEvents()}
+                  />
+                </label>
+                <label>
+                  <span>起止缓冲 · {padSeconds.toFixed(1)}s</span>
+                  <input
+                    type="range"
+                    min="0"
+                    max="3"
+                    step="0.1"
+                    value={padSeconds}
+                    onChange={(event) => setPadSeconds(Number(event.target.value))}
+                    onMouseUp={() => void redetectEvents()}
+                    onTouchEnd={() => void redetectEvents()}
+                  />
+                </label>
+                <label>
+                  <span>最小响度 · {minPeakDbfs} dBFS</span>
+                  <input
+                    type="range"
+                    min="-60"
+                    max="-20"
+                    step="1"
+                    value={minPeakDbfs}
+                    onChange={(event) => setMinPeakDbfs(Number(event.target.value))}
+                    onMouseUp={() => void redetectEvents()}
+                    onTouchEnd={() => void redetectEvents()}
+                  />
+                </label>
+              </div>
+              <div className="eventSection">
+                <div className="sideHeader">
+                  <h3>{selected ? `事件 #${selected.id}` : "未选择事件"}</h3>
+                  <button className="iconButton" aria-label="事件说明">
+                    <Info size={16} />
+                  </button>
                 </div>
-                <div>
-                  <dt>类型</dt>
-                  <dd>{kindLabel[selected.kind]}</dd>
-                </div>
-                <div>
-                  <dt>峰值</dt>
-                  <dd>{selected.peak_dbfs.toFixed(1)} dBFS</dd>
-                </div>
-              </dl>
-            ) : (
-              <div className="emptyState">暂无事件</div>
-            )}
-          </div>
+                {selected ? (
+                  <dl className="detailList">
+                    <div>
+                      <dt>时间</dt>
+                      <dd>
+                        {formatTime(selected.start)} - {formatTime(selected.end)}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>类型</dt>
+                      <dd>{kindLabel[selected.kind]}</dd>
+                    </div>
+                    <div>
+                      <dt>峰值</dt>
+                      <dd>{selected.peak_dbfs.toFixed(1)} dBFS</dd>
+                    </div>
+                  </dl>
+                ) : (
+                  <div className="emptyState">暂无事件</div>
+                )}
+              </div>
+            </>
+          )}
         </aside>
       </section>
 
