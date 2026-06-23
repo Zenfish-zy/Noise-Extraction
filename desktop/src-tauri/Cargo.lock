@@ -1840,7 +1840,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "noise-evidence-next"
+name = "noise-evidence"
 version = "0.1.0"
 dependencies = [
  "noise-core",

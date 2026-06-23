@@ -1,5 +1,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    noise_evidence_next_lib::run()
+    noise_evidence_lib::run()
 }
