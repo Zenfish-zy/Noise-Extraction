@@ -264,6 +264,33 @@ function App() {
     }
   }
 
+  async function refreshPreview(path: string, config = appConfig()) {
+    setError(null);
+    setStatus("正在刷新预览");
+    try {
+      const [waveform, preview] = await Promise.all([
+        invoke<WaveformResult>("waveform_peaks", {
+          inputPath: path,
+          bins: waveformBinCount,
+          config,
+        }),
+        invoke<AudioPreviewResult>("prepare_audio_preview", {
+          inputPath: path,
+          config,
+        }),
+      ]);
+      setWaveformBins(waveform.bins);
+      setAudioSrc(convertFileSrc(preview.wav_path));
+      setIsPlaying(false);
+      setPlayheadSec(0);
+      setStatus("预览已更新");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      setError(message);
+      setStatus("预览刷新失败");
+    }
+  }
+
   async function analyzeCurrentAudio(path: string) {
     setError(null);
     setStatus("正在分析音频");
@@ -360,6 +387,17 @@ function App() {
       const message = err instanceof Error ? err.message : String(err);
       setError(message);
       setStatus("导出失败");
+    }
+  }
+
+  function selectAndPlayEvent(id: number) {
+    const event = events.find((e) => e.id === id);
+    if (!event) return;
+
+    setSelectedEventId(id);
+    if (audioRef.current) {
+      audioRef.current.currentTime = event.start;
+      void audioRef.current.play();
     }
   }
 
@@ -469,25 +507,39 @@ function App() {
 
   async function changeDenoiseEnabled(enabled: boolean) {
     setDenoiseEnabled(enabled);
-    setError(null);
     if (inputPath) {
-      await inspectCurrentAudio(inputPath, appConfig({ denoiseEnabled: enabled }));
+      await refreshPreview(inputPath, appConfig({ denoiseEnabled: enabled }));
     }
   }
 
   async function changeAmplifyEnabled(enabled: boolean) {
     setAmplifyEnabled(enabled);
-    setError(null);
     if (inputPath) {
-      await inspectCurrentAudio(inputPath);
+      await refreshPreview(inputPath);
     }
   }
 
   async function changeSliceEnabled(enabled: boolean) {
     setSliceEnabled(enabled);
+  }
+
+  async function redetectEvents() {
+    if (!inputPath) return;
     setError(null);
-    if (inputPath) {
-      await inspectCurrentAudio(inputPath);
+    setStatus("正在重新检测事件");
+    try {
+      const result = await invoke<AnalyzeResult>("analyze_audio", {
+        inputPath,
+        config: appConfig(),
+      });
+      const mapped = mapCoreEvents(result.events);
+      setEvents(mapped);
+      setSelectedEventId(mapped[0]?.id ?? 0);
+      setStatus(`检测完成 · ${result.events.length} 段`);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      setError(message);
+      setStatus("检测失败");
     }
   }
 
@@ -639,7 +691,7 @@ function App() {
                   width: `${((event.end - event.start) / durationSeconds) * 100}%`,
                   backgroundColor: kindTone[event.kind],
                 }}
-                onClick={() => setSelectedEventId(event.id)}
+                onClick={() => selectAndPlayEvent(event.id)}
               />
             ))}
             {dragSpan ? <div className="selectionBlock" style={{ left: `${dragLeft}%`, width: `${dragWidth}%` }} /> : null}
@@ -661,7 +713,7 @@ function App() {
                 className={`tableRow ${event.id === selected?.id ? "selected" : ""}`}
                 role="row"
                 key={event.id}
-                onClick={() => setSelectedEventId(event.id)}
+                onClick={() => selectAndPlayEvent(event.id)}
               >
                 <button
                   className={event.keep ? "pill keep" : "pill off"}
@@ -729,7 +781,13 @@ function App() {
             </label>
             <label>
               <span>灵敏度 · {sensitivity === "high" ? "高" : sensitivity === "low" ? "低" : "中"}</span>
-              <select value={sensitivity} onChange={(event) => setSensitivity(event.target.value as Sensitivity)}>
+              <select
+                value={sensitivity}
+                onChange={(event) => {
+                  setSensitivity(event.target.value as Sensitivity);
+                  void redetectEvents();
+                }}
+              >
                 <option value="low">低</option>
                 <option value="medium">中</option>
                 <option value="high">高</option>
@@ -744,6 +802,8 @@ function App() {
                 step="0.1"
                 value={mergeGap}
                 onChange={(event) => setMergeGap(Number(event.target.value))}
+                onMouseUp={() => void redetectEvents()}
+                onTouchEnd={() => void redetectEvents()}
               />
             </label>
             <label>
@@ -755,6 +815,8 @@ function App() {
                 step="0.1"
                 value={padSeconds}
                 onChange={(event) => setPadSeconds(Number(event.target.value))}
+                onMouseUp={() => void redetectEvents()}
+                onTouchEnd={() => void redetectEvents()}
               />
             </label>
             <label>
@@ -766,6 +828,8 @@ function App() {
                 step="1"
                 value={minPeakDbfs}
                 onChange={(event) => setMinPeakDbfs(Number(event.target.value))}
+                onMouseUp={() => void redetectEvents()}
+                onTouchEnd={() => void redetectEvents()}
               />
             </label>
           </div>
