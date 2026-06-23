@@ -207,6 +207,8 @@ function App() {
   const [proxyUrl, setProxyUrl] = useState(() => {
     return localStorage.getItem("proxyUrl") || "";
   });
+  const [proxyScanning, setProxyScanning] = useState(false);
+  const [proxyResults, setProxyResults] = useState<Array<{ url: string; available: boolean; name: string }>>([]);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [leftCollapsed, setLeftCollapsed] = useState(false);
   const [rightCollapsed, setRightCollapsed] = useState(false);
@@ -791,6 +793,31 @@ function App() {
     }
   }
 
+  async function scanLocalProxy() {
+    setProxyScanning(true);
+    setProxyResults([]);
+    try {
+      // TODO: 调用后端扫描本地代理
+      // const results = await invoke<Array<{ url: string; available: boolean; name: string }>>("scan_local_proxy");
+      // setProxyResults(results);
+
+      // 临时模拟结果（实际需要后端实现）
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      const mockResults = [
+        { url: "http://127.0.0.1:7890", available: true, name: "Clash" },
+        { url: "socks5://127.0.0.1:10808", available: true, name: "V2Ray SOCKS5" },
+        { url: "http://127.0.0.1:10809", available: false, name: "V2Ray HTTP" },
+        { url: "socks5://127.0.0.1:1080", available: false, name: "Shadowsocks" },
+      ];
+      setProxyResults(mockResults);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      setError(`代理扫描失败: ${message}`);
+    } finally {
+      setProxyScanning(false);
+    }
+  }
+
   const hasInput = inputPath !== null;
   const kept = events.filter((event) => event.keep);
   const keptSeconds = kept.reduce((sum, event) => sum + event.end - event.start, 0);
@@ -1107,18 +1134,77 @@ function App() {
                           </label>
                         </label>
                         {proxyEnabled && (
-                          <label style={{ marginTop: "var(--space-md)" }}>
-                            <span>代理地址</span>
-                            <input
-                              type="text"
-                              value={proxyUrl}
-                              onChange={(event) => setProxyUrl(event.target.value)}
-                              placeholder="http://127.0.0.1:7890 或 socks5://127.0.0.1:1080"
-                            />
-                            <div style={{ fontSize: "13px", color: "var(--color-text-muted)", marginTop: "4px" }}>
-                              支持 HTTP/HTTPS 和 SOCKS5 代理
-                            </div>
-                          </label>
+                          <>
+                            <label style={{ marginTop: "var(--space-md)" }}>
+                              <span>代理地址</span>
+                              <div style={{ display: "flex", gap: "8px" }}>
+                                <input
+                                  type="text"
+                                  value={proxyUrl}
+                                  onChange={(event) => setProxyUrl(event.target.value)}
+                                  placeholder="http://127.0.0.1:7890 或 socks5://127.0.0.1:1080"
+                                  style={{ flex: 1 }}
+                                />
+                                <button
+                                  type="button"
+                                  className="ghostButton"
+                                  onClick={() => void scanLocalProxy()}
+                                  disabled={proxyScanning}
+                                  style={{ whiteSpace: "nowrap" }}
+                                >
+                                  {proxyScanning ? "扫描中..." : "扫描"}
+                                </button>
+                              </div>
+                              <div style={{ fontSize: "13px", color: "var(--color-text-muted)", marginTop: "4px" }}>
+                                支持 HTTP/HTTPS 和 SOCKS5 代理
+                              </div>
+                            </label>
+
+                            {proxyResults.length > 0 && (
+                              <div style={{ marginTop: "var(--space-md)" }}>
+                                <div style={{ fontSize: "13px", fontWeight: 500, color: "var(--color-text-secondary)", marginBottom: "8px" }}>
+                                  扫描结果：
+                                </div>
+                                <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                                  {proxyResults.map((result, index) => (
+                                    <button
+                                      key={index}
+                                      type="button"
+                                      onClick={() => {
+                                        if (result.available) {
+                                          setProxyUrl(result.url);
+                                        }
+                                      }}
+                                      disabled={!result.available}
+                                      style={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                        gap: "8px",
+                                        padding: "8px 12px",
+                                        border: "1px solid var(--color-border)",
+                                        borderRadius: "6px",
+                                        background: result.available ? "white" : "var(--color-surface)",
+                                        cursor: result.available ? "pointer" : "not-allowed",
+                                        textAlign: "left",
+                                        fontSize: "13px",
+                                        opacity: result.available ? 1 : 0.5,
+                                      }}
+                                    >
+                                      <span style={{ color: result.available ? "#10b981" : "#ef4444" }}>
+                                        {result.available ? "✓" : "×"}
+                                      </span>
+                                      <span style={{ flex: 1, fontFamily: "monospace", color: "var(--color-text)" }}>
+                                        {result.url}
+                                      </span>
+                                      <span style={{ fontSize: "12px", color: "var(--color-text-muted)" }}>
+                                        {result.name}
+                                      </span>
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </>
                         )}
                       </div>
                     </>
