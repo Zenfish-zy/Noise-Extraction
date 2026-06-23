@@ -159,6 +159,7 @@ function App() {
   const [denoiseEnabled, setDenoiseEnabled] = useState(true);
   const [amplifyEnabled, setAmplifyEnabled] = useState(false);
   const [sliceEnabled, setSliceEnabled] = useState(false);
+  const [importProgress, setImportProgress] = useState<{ stage: string; percent: number } | null>(null);
 
   useEffect(() => {
     void invoke<string>("app_version")
@@ -169,6 +170,10 @@ function App() {
   useEffect(() => {
     const unlisten = listen<{ stage: string; percent: number }>("import_progress", (event) => {
       setStatus(event.payload.stage);
+      setImportProgress(event.payload);
+      if (event.payload.percent >= 100) {
+        setTimeout(() => setImportProgress(null), 800);
+      }
     });
     return () => {
       void unlisten.then((fn) => fn());
@@ -662,6 +667,12 @@ function App() {
               setSelectingSpan(false);
             }}
           >
+            {importProgress && (
+              <div className="importProgress">
+                <div className="progressBar" style={{ width: `${importProgress.percent}%` }} />
+                <span className="progressText">{importProgress.stage}</span>
+              </div>
+            )}
             <div className="waveGrid" />
             {!hasInput ? (
               <div className="emptyWaveform">

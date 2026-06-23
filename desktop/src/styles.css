@@ -247,6 +247,40 @@ button:disabled:hover {
   opacity: 0.28;
 }
 
+.importProgress {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: rgba(231, 227, 218, 0.6);
+  z-index: 10;
+  overflow: hidden;
+}
+
+.progressBar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: linear-gradient(90deg, #3C5A78, #5A8AA3);
+  transition: width 0.3s ease;
+  box-shadow: 0 0 8px rgba(60, 90, 120, 0.4);
+}
+
+.progressText {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 12px;
+  color: #3C5A78;
+  font-weight: 500;
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.9);
+  pointer-events: none;
+  z-index: 11;
+}
+
 .waveBars {
   position: absolute;
   inset: 20px 12px;
