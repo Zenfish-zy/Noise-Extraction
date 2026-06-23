@@ -602,26 +602,6 @@ function App() {
     }
   }
 
-  async function changeMode(newMode: "full_denoise" | "full_amplify" | "highlight") {
-    setModeMenuOpen(false);
-    if (newMode === "full_denoise") {
-      setDenoiseEnabled(true);
-      setAmplifyEnabled(false);
-      setSliceEnabled(false);
-    } else if (newMode === "full_amplify") {
-      setDenoiseEnabled(false);
-      setAmplifyEnabled(true);
-      setSliceEnabled(false);
-    } else {
-      setDenoiseEnabled(false);
-      setAmplifyEnabled(false);
-      setSliceEnabled(true);
-    }
-    if (inputPath) {
-      await refreshPreview(inputPath);
-    }
-  }
-
   async function redetectEvents() {
     if (!inputPath) return;
     setError(null);
@@ -716,30 +696,51 @@ function App() {
             导入录音
           </button>
 
-          <div className="modeDropdown">
-            <button
-              className="ghostButton"
-              onClick={(e) => {
-                e.stopPropagation();
-                setModeMenuOpen(!modeMenuOpen);
-              }}
-            >
-              <Volume2 size={18} />
-              {sliceEnabled ? "智能切片" : denoiseEnabled ? "整段滤噪" : "整段放大"} ▼
-            </button>
-            {modeMenuOpen && (
-              <div className="dropdownMenu" onClick={(e) => e.stopPropagation()}>
-                <button onClick={() => void changeMode("full_denoise")}>
-                  整段滤噪
-                </button>
-                <button onClick={() => void changeMode("full_amplify")}>
-                  整段放大
-                </button>
-                <button onClick={() => void changeMode("highlight")}>
-                  智能切片
-                </button>
-              </div>
-            )}
+          <div className="processingToggles">
+            <label className="toggleSetting">
+              <span>滤底噪</span>
+              <label className="toggleSwitch">
+                <input
+                  type="checkbox"
+                  checked={denoiseEnabled}
+                  onChange={(event) => {
+                    void changeDenoiseEnabled(event.target.checked);
+                  }}
+                  disabled={!inputPath}
+                />
+                <span className="toggleSlider"></span>
+              </label>
+            </label>
+
+            <label className="toggleSetting">
+              <span>放大</span>
+              <label className="toggleSwitch">
+                <input
+                  type="checkbox"
+                  checked={amplifyEnabled}
+                  onChange={(event) => {
+                    void changeAmplifyEnabled(event.target.checked);
+                  }}
+                  disabled={!inputPath}
+                />
+                <span className="toggleSlider"></span>
+              </label>
+            </label>
+
+            <label className="toggleSetting">
+              <span>切片</span>
+              <label className="toggleSwitch">
+                <input
+                  type="checkbox"
+                  checked={sliceEnabled}
+                  onChange={(event) => {
+                    void changeSliceEnabled(event.target.checked);
+                  }}
+                  disabled={!inputPath}
+                />
+                <span className="toggleSlider"></span>
+              </label>
+            </label>
           </div>
 
           <button
@@ -751,15 +752,17 @@ function App() {
             检测事件
           </button>
 
-          <button
-            className="ghostButton"
-            onClick={() => void aiEnhanceEvents()}
-            disabled={!inputPath || events.length === 0 || !aiEnabled}
-            title={!aiEnabled ? "请先在设置中开启 AI 识别" : "使用 AI 重新分类事件类型"}
-          >
-            <Sparkles size={18} />
-            AI 增强
-          </button>
+          <label className="toggleSetting">
+            <span>AI 增强</span>
+            <label className="toggleSwitch">
+              <input
+                type="checkbox"
+                checked={aiEnabled}
+                onChange={(event) => setAiEnabled(event.target.checked)}
+              />
+              <span className="toggleSlider"></span>
+            </label>
+          </label>
 
           <button
             className="ghostButton"
@@ -867,11 +870,14 @@ function App() {
                   <h3>AI 增强识别</h3>
                   <label className="toggleSetting">
                     <span>AI 识别 · {aiEnabled ? "开" : "关"}</span>
-                    <input
-                      type="checkbox"
-                      checked={aiEnabled}
-                      onChange={(event) => setAiEnabled(event.target.checked)}
-                    />
+                    <label className="toggleSwitch">
+                      <input
+                        type="checkbox"
+                        checked={aiEnabled}
+                        onChange={(event) => setAiEnabled(event.target.checked)}
+                      />
+                      <span className="toggleSlider"></span>
+                    </label>
                   </label>
                   {aiEnabled && (
                     <>
