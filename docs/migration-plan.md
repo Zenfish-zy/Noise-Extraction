@@ -37,7 +37,7 @@ Exit criteria:
 
 ## Phase 2: UI Prototype
 
-Status: complete for static UI; in progress for live workflow wiring.
+Status: complete for live analyze/export review loop; still open for real waveform rendering and playback.
 
 Goals:
 
@@ -55,11 +55,11 @@ Exit criteria:
 
 - `pnpm build` passes for the React prototype.
 - Tauri shell compiles with a React frontend.
-- UI can render mock, synthetic Rust, and WAV analysis events.
+- UI can render mock, synthetic Rust, and common audio analysis events.
 
 ## Phase 3: CLI Bridge
 
-Status: complete for common audio analyze/export commands; still open for progress events.
+Status: complete for common audio analyze/export commands; Tauri reviewed-event export is wired; still open for progress events.
 
 Goals:
 
@@ -71,7 +71,7 @@ Goals:
 Exit criteria:
 
 - Tauri UI can trigger an analyze command.
-- Frontend receives results for synthetic and WAV input.
+- Frontend receives results for synthetic and common audio input (`m4a/mp4/aac`, `mp3`, `wav`, `flac`, `ogg/oga`).
 - Errors are displayed consistently.
 
 ## Phase 4: Rust Core Parity
@@ -134,4 +134,6 @@ Exit criteria:
 - [x] Wire frontend WAV selection to Tauri/Rust analysis.
 - [x] Add Rust export path for full WAV, highlight WAV, and CSV report.
 - [x] Wire frontend save dialogs to Tauri/Rust export.
+- [x] Support common input formats in the next backend and frontend picker.
+- [x] Wire reviewed event keep/delete/manual state into next export.
 - [ ] Add parity fixtures against Python reference output.

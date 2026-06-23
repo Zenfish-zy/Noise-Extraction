@@ -85,7 +85,10 @@ Current next-generation support:
 - Supported input families are currently handled through Symphonia: `m4a/mp4/aac`, `mp3`, `wav`, `flac`, `ogg/oga`.
 - Audio is decoded to mono `f32`; multichannel files are averaged per frame.
 - `noise-cli export-audio --input <audio> --output <wav> --config <json> [--csv <report.csv>]` writes a WAV export and, in highlight mode, an optional CSV report.
-- Tauri command `export_audio(input_path, wav_path, csv_path, config)` writes full-mode WAV or highlight-mode WAV + CSV.
+- Tauri command `manual_event(input_path, start, end)` analyzes a user-selected span from the original audio and returns a full `NoiseEvent` with `manual: true`.
+- Tauri command `export_audio(input_path, wav_path, csv_path, config, events)` writes full-mode WAV or highlight-mode WAV + CSV.
+- In `highlight` mode, `events` is the user-reviewed event list from the frontend. Deleted events are absent, `keep: false` events are excluded from the WAV highlight, and manual events are included when `keep: true`.
+- In full modes, `events` is ignored and only WAV is exported.
 
 Current limitations:
 

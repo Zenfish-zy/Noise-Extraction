@@ -86,7 +86,8 @@ Future responsibilities:
 
 Current responsibilities:
 
-- WAV decode to mono `f32`.
+- Common local audio decode to mono `f32`.
+- Supported input families: `m4a/mp4/aac`, `mp3`, `wav`, `flac`, `ogg/oga`.
 - Stereo/multichannel downmix.
 - Mono 16-bit WAV writing.
 - UTF-8-BOM CSV report writing.
@@ -94,7 +95,7 @@ Current responsibilities:
 
 Future responsibilities:
 
-- Optional support for additional local formats, or a clearly isolated decoder fallback.
+- Optional ffmpeg fallback for codecs outside Symphonia's enabled decoders.
 
 ### Rust Processing Pipeline
 

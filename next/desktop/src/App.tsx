@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { open, save } from "@tauri-apps/plugin-dialog";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type PointerEvent, type ReactNode } from "react";
 import {
   Download,
   FileAudio,
@@ -24,6 +24,10 @@ type CoreNoiseEvent = {
   end: number;
   kind: EventKind;
   peak_dbfs: number;
+  rms_dbfs: number;
+  low_ratio: number;
+  high_ratio: number;
+  suspect_self: boolean;
   keep: boolean;
   manual: boolean;
 };
@@ -84,16 +88,68 @@ type NoiseEvent = {
   start: number;
   end: number;
   kind: EventKind;
-  peakDbfs: number;
+  peak_dbfs: number;
+  rms_dbfs: number;
+  low_ratio: number;
+  high_ratio: number;
+  suspect_self: boolean;
   keep: boolean;
   manual: boolean;
 };
 
 const fallbackEvents: NoiseEvent[] = [
-  { id: 1, start: 12.4, end: 13.8, kind: "rumble", peakDbfs: -8.4, keep: true, manual: false },
-  { id: 2, start: 25.1, end: 26.0, kind: "thud", peakDbfs: -5.8, keep: true, manual: false },
-  { id: 3, start: 38.6, end: 40.2, kind: "drag", peakDbfs: -12.1, keep: true, manual: true },
-  { id: 4, start: 55.3, end: 55.9, kind: "transient", peakDbfs: -3.2, keep: false, manual: false },
+  {
+    id: 1,
+    start: 12.4,
+    end: 13.8,
+    kind: "rumble",
+    peak_dbfs: -8.4,
+    rms_dbfs: -18.2,
+    low_ratio: 0.72,
+    high_ratio: 0.08,
+    suspect_self: false,
+    keep: true,
+    manual: false,
+  },
+  {
+    id: 2,
+    start: 25.1,
+    end: 26.0,
+    kind: "thud",
+    peak_dbfs: -5.8,
+    rms_dbfs: -16.6,
+    low_ratio: 0.61,
+    high_ratio: 0.11,
+    suspect_self: false,
+    keep: true,
+    manual: false,
+  },
+  {
+    id: 3,
+    start: 38.6,
+    end: 40.2,
+    kind: "drag",
+    peak_dbfs: -12.1,
+    rms_dbfs: -21.4,
+    low_ratio: 0.38,
+    high_ratio: 0.22,
+    suspect_self: false,
+    keep: true,
+    manual: true,
+  },
+  {
+    id: 4,
+    start: 55.3,
+    end: 55.9,
+    kind: "transient",
+    peak_dbfs: -3.2,
+    rms_dbfs: -19.0,
+    low_ratio: 0.18,
+    high_ratio: 0.44,
+    suspect_self: false,
+    keep: false,
+    manual: false,
+  },
 ];
 
 const kindLabel: Record<EventKind, string> = {
@@ -115,8 +171,13 @@ const kindTone: Record<EventKind, string> = {
 const audioExtensions = ["m4a", "mp4", "aac", "mp3", "wav", "flac", "ogg", "oga"];
 
 function App() {
+  const waveformRef = useRef<HTMLDivElement>(null);
   const [version, setVersion] = useState("0.1.0");
   const [analysis, setAnalysis] = useState<AnalyzeResult | null>(null);
+  const [events, setEvents] = useState<NoiseEvent[]>(fallbackEvents);
+  const [selectedEventId, setSelectedEventId] = useState<number>(fallbackEvents[0].id);
+  const [selectingSpan, setSelectingSpan] = useState(false);
+  const [dragSpan, setDragSpan] = useState<{ start: number; end: number } | null>(null);
   const [fileLabel, setFileLabel] = useState("20260603_233810.m4a");
   const [inputPath, setInputPath] = useState<string | null>(null);
   const [status, setStatus] = useState("加载 Rust 合成样例");
@@ -134,6 +195,9 @@ function App() {
     void invoke<AnalyzeResult>("analyze_synthetic")
       .then((result) => {
         setAnalysis(result);
+        const mapped = mapCoreEvents(result.events);
+        setEvents(mapped);
+        setSelectedEventId(mapped[0]?.id ?? 0);
         setFileLabel("Rust synthetic");
         setStatus("样例分析已完成");
       })
@@ -204,7 +268,10 @@ function App() {
         inputPath: path,
         detect: detectConfig(),
       });
+      const mapped = mapCoreEvents(result.events);
       setAnalysis(result);
+      setEvents(mapped);
+      setSelectedEventId(mapped[0]?.id ?? 0);
       setFileLabel(path.split(/[\\/]/).pop() ?? path);
       setInputPath(path);
       setStatus(`音频分析完成 · ${result.events.length} 段`);
@@ -235,6 +302,11 @@ function App() {
     if (!inputPath) {
       setError("请先导入录音文件。");
       setStatus("等待导入录音");
+      return;
+    }
+    if (mode === "highlight" && events.every((event) => !event.keep)) {
+      setError("请至少保留一个事件后再导出智能切片合集。");
+      setStatus("等待复核事件");
       return;
     }
 
@@ -268,6 +340,7 @@ function App() {
         wavPath,
         csvPath,
         config: appConfig(),
+        events: mode === "highlight" ? events.map(toCoreEvent) : null,
       });
       setStatus(
         result.csv_path
@@ -281,21 +354,89 @@ function App() {
     }
   }
 
-  const events = analysis
-    ? analysis.events.map((event, index) => ({
-        id: index + 1,
-        start: event.start,
-        end: event.end,
-        kind: event.kind,
-        peakDbfs: event.peak_dbfs,
-        keep: event.keep,
-        manual: event.manual,
-      }))
-    : fallbackEvents;
-  const selected = events[0] ?? fallbackEvents[0];
+  function toggleKeep(id: number) {
+    setEvents((current) => current.map((event) => (event.id === id ? { ...event, keep: !event.keep } : event)));
+  }
+
+  function deleteEvent(id: number) {
+    setEvents((current) => {
+      const next = current.filter((event) => event.id !== id);
+      if (selectedEventId === id) {
+        setSelectedEventId(next[0]?.id ?? 0);
+      }
+      return next;
+    });
+  }
+
+  function pointToSeconds(event: PointerEvent<HTMLElement>) {
+    const rect = waveformRef.current?.getBoundingClientRect();
+    if (!rect) {
+      return 0;
+    }
+    const ratio = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
+    return ratio * durationSeconds;
+  }
+
+  function beginSpanSelection(event: PointerEvent<HTMLElement>) {
+    if (!selectingSpan) {
+      return;
+    }
+    const start = pointToSeconds(event);
+    setDragSpan({ start, end: start });
+    event.currentTarget.setPointerCapture(event.pointerId);
+  }
+
+  function updateSpanSelection(event: PointerEvent<HTMLElement>) {
+    if (!dragSpan || !selectingSpan) {
+      return;
+    }
+    setDragSpan((span) => (span ? { ...span, end: pointToSeconds(event) } : span));
+  }
+
+  async function finishSpanSelection(event: PointerEvent<HTMLElement>) {
+    if (!dragSpan || !selectingSpan) {
+      return;
+    }
+    const end = pointToSeconds(event);
+    const start = Math.min(dragSpan.start, end);
+    const stop = Math.max(dragSpan.start, end);
+    setDragSpan(null);
+    setSelectingSpan(false);
+    if (stop - start < 0.05) {
+      setStatus("框选区间太短，已忽略");
+      return;
+    }
+    if (!inputPath) {
+      setError("请先导入真实录音，再框选新增事件。");
+      return;
+    }
+    setStatus("正在新增手动事件");
+    try {
+      const created = await invoke<CoreNoiseEvent>("manual_event", {
+        inputPath,
+        start,
+        end: stop,
+      });
+      setEvents((current) => {
+        const nextId = current.reduce((max, item) => Math.max(max, item.id), 0) + 1;
+        const next = [...current, { ...created, id: nextId }].sort((a, b) => a.start - b.start);
+        setSelectedEventId(nextId);
+        return next;
+      });
+      setStatus(`已新增手动事件 · ${formatTime(start)} - ${formatTime(stop)}`);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      setError(message);
+      setStatus("新增事件失败");
+    }
+  }
+
   const kept = events.filter((event) => event.keep);
   const keptSeconds = kept.reduce((sum, event) => sum + event.end - event.start, 0);
   const durationSeconds = Math.max(analysis?.duration_seconds ?? 70, 1);
+  const selected = events.find((event) => event.id === selectedEventId) ?? events[0] ?? fallbackEvents[0];
+  const dragLeft = dragSpan ? (Math.min(dragSpan.start, dragSpan.end) / durationSeconds) * 100 : 0;
+  const dragWidth = dragSpan ? (Math.abs(dragSpan.end - dragSpan.start) / durationSeconds) * 100 : 0;
   const exportSummary =
     mode === "highlight"
       ? `合集约 ${keptSeconds.toFixed(1)} 秒 · WAV + CSV`
@@ -377,7 +518,15 @@ function App() {
                 <ScanLine size={17} />
                 检测事件
               </button>
-              <button>
+              <button
+                className={selectingSpan ? "activeTool" : ""}
+                onClick={() => {
+                  setSelectingSpan((value) => !value);
+                  setDragSpan(null);
+                  setError(null);
+                }}
+                disabled={!inputPath}
+              >
                 <Scissors size={17} />
                 框选新增
               </button>
@@ -386,19 +535,34 @@ function App() {
 
           {error ? <div className="errorBanner">{error}</div> : null}
 
-          <div className="waveform" aria-label="波形时间轴">
+          <div
+            ref={waveformRef}
+            className={`waveform ${selectingSpan ? "selecting" : ""}`}
+            aria-label="波形时间轴"
+            onPointerDown={beginSpanSelection}
+            onPointerMove={updateSpanSelection}
+            onPointerUp={(event) => {
+              void finishSpanSelection(event);
+            }}
+            onPointerCancel={() => {
+              setDragSpan(null);
+              setSelectingSpan(false);
+            }}
+          >
             <div className="waveGrid" />
             {events.map((event) => (
               <div
                 key={event.id}
-                className={`eventBlock ${event.keep ? "" : "muted"}`}
+                className={`eventBlock ${event.keep ? "" : "muted"} ${event.id === selected.id ? "selected" : ""}`}
                 style={{
                   left: `${(event.start / durationSeconds) * 100}%`,
                   width: `${((event.end - event.start) / durationSeconds) * 100}%`,
                   backgroundColor: kindTone[event.kind],
                 }}
+                onClick={() => setSelectedEventId(event.id)}
               />
             ))}
+            {dragSpan ? <div className="selectionBlock" style={{ left: `${dragLeft}%`, width: `${dragWidth}%` }} /> : null}
             <div className="playhead" style={{ left: "18%" }} />
           </div>
 
@@ -413,16 +577,36 @@ function App() {
               <span />
             </div>
             {events.map((event) => (
-              <div className="tableRow" role="row" key={event.id}>
-                <span className={event.keep ? "pill keep" : "pill off"}>{event.keep ? "是" : "否"}</span>
+              <div
+                className={`tableRow ${event.id === selected.id ? "selected" : ""}`}
+                role="row"
+                key={event.id}
+                onClick={() => setSelectedEventId(event.id)}
+              >
+                <button
+                  className={event.keep ? "pill keep" : "pill off"}
+                  onClick={(clickEvent) => {
+                    clickEvent.stopPropagation();
+                    toggleKeep(event.id);
+                  }}
+                >
+                  {event.keep ? "保留" : "排除"}
+                </button>
                 <span>{formatTime(event.start)}</span>
                 <span>{(event.end - event.start).toFixed(2)}s</span>
                 <span>{event.manual ? "手动" : "自动"}</span>
                 <span className="kind" style={{ color: kindTone[event.kind] }}>
                   {kindLabel[event.kind]}
                 </span>
-                <span>{event.peakDbfs.toFixed(1)} dB</span>
-                <button className="iconButton" aria-label="删除事件">
+                <span>{event.peak_dbfs.toFixed(1)} dB</span>
+                <button
+                  className="iconButton"
+                  aria-label="删除事件"
+                  onClick={(clickEvent) => {
+                    clickEvent.stopPropagation();
+                    deleteEvent(event.id);
+                  }}
+                >
                   <Trash2 size={16} />
                 </button>
               </div>
@@ -450,7 +634,7 @@ function App() {
             </div>
             <div>
               <dt>峰值</dt>
-              <dd>{selected.peakDbfs.toFixed(1)} dBFS</dd>
+              <dd>{selected.peak_dbfs.toFixed(1)} dBFS</dd>
             </div>
           </dl>
           <div className="settingsBox">
@@ -523,6 +707,15 @@ function Step(props: { active?: boolean; icon: ReactNode; label: string; value: 
       </div>
     </div>
   );
+}
+
+function mapCoreEvents(events: CoreNoiseEvent[]): NoiseEvent[] {
+  return events.map((event, index) => ({ ...event, id: index + 1 }));
+}
+
+function toCoreEvent(event: NoiseEvent): CoreNoiseEvent {
+  const { id: _id, ...coreEvent } = event;
+  return coreEvent;
 }
 
 function formatTime(value: number) {

@@ -143,6 +143,12 @@ button:disabled:hover {
   border-color: #5c8e7d;
 }
 
+.toolButtons button.activeTool {
+  border-color: #4f7e6e;
+  background: #e4ece6;
+  color: #3f6b5d;
+}
+
 .workspace {
   display: grid;
   grid-template-columns: 176px minmax(0, 1fr) 300px;
@@ -214,10 +220,15 @@ button:disabled:hover {
 .waveform {
   position: relative;
   overflow: hidden;
+  user-select: none;
   background:
     linear-gradient(180deg, rgba(251, 250, 246, 0), rgba(251, 250, 246, 0.9)),
     repeating-linear-gradient(90deg, transparent 0 56px, rgba(215, 207, 190, 0.45) 57px),
     linear-gradient(180deg, #f8f6f0, #f2ede3);
+}
+
+.waveform.selecting {
+  cursor: crosshair;
 }
 
 .waveGrid {
@@ -237,10 +248,28 @@ button:disabled:hover {
   min-width: 7px;
   border-radius: 6px;
   opacity: 0.5;
+  cursor: pointer;
 }
 
 .eventBlock.muted {
   opacity: 0.18;
+}
+
+.eventBlock.selected {
+  opacity: 0.78;
+  outline: 2px solid rgba(52, 49, 43, 0.45);
+  outline-offset: 2px;
+}
+
+.selectionBlock {
+  position: absolute;
+  top: 18px;
+  bottom: 18px;
+  min-width: 2px;
+  border: 1px dashed #b05b4a;
+  border-radius: 6px;
+  background: rgba(176, 91, 74, 0.16);
+  pointer-events: none;
 }
 
 .playhead {
@@ -274,11 +303,17 @@ button:disabled:hover {
 
 .tableRow {
   border-top: 1px solid #f0eadf;
+  cursor: pointer;
+}
+
+.tableRow.selected {
+  background: #f6f2e9;
 }
 
 .pill {
   width: fit-content;
   min-width: 36px;
+  border: 0;
   border-radius: 999px;
   padding: 3px 9px;
   text-align: center;
