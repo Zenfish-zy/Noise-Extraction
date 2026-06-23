@@ -174,6 +174,7 @@ function App() {
   const [aiEndpoint, setAiEndpoint] = useState("https://api.openai.com/v1/chat/completions");
   const [aiKey, setAiKey] = useState("");
   const [aiModel, setAiModel] = useState("gpt-4o-mini");
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   useEffect(() => {
     void invoke<string>("app_version")
@@ -679,8 +680,140 @@ function App() {
             <FileAudio size={18} />
             导入录音
           </button>
+          <button
+            className="ghostButton"
+            onClick={() => setSettingsOpen(true)}
+            aria-label="设置"
+          >
+            <Settings2 size={18} />
+            设置
+          </button>
         </div>
       </section>
+
+      {settingsOpen && (
+        <div className="modalOverlay" onClick={() => setSettingsOpen(false)}>
+          <div className="modalContent" onClick={(e) => e.stopPropagation()}>
+            <div className="modalHeader">
+              <h2>⚙️ 设置</h2>
+              <button className="iconButton" onClick={() => setSettingsOpen(false)} aria-label="关闭">
+                ×
+              </button>
+            </div>
+
+            <div className="modalBody">
+              <section className="settingsGroup">
+                <h3>检测参数</h3>
+                <label className="toggleSetting">
+                  <span>智能切片 · {sliceEnabled ? "开" : "关"}</span>
+                  <input
+                    type="checkbox"
+                    checked={sliceEnabled}
+                    onChange={(event) => {
+                      void changeSliceEnabled(event.target.checked);
+                    }}
+                  />
+                </label>
+                <label>
+                  <span>灵敏度 · {sensitivity === "high" ? "高" : sensitivity === "low" ? "低" : "中"}</span>
+                  <select
+                    value={sensitivity}
+                    onChange={(event) => {
+                      setSensitivity(event.target.value as Sensitivity);
+                    }}
+                  >
+                    <option value="low">低</option>
+                    <option value="medium">中</option>
+                    <option value="high">高</option>
+                  </select>
+                </label>
+                <label>
+                  <span>合并间隔 · {mergeGap.toFixed(1)}s</span>
+                  <input
+                    type="range"
+                    min="0"
+                    max="5"
+                    step="0.1"
+                    value={mergeGap}
+                    onChange={(event) => setMergeGap(Number(event.target.value))}
+                  />
+                </label>
+                <label>
+                  <span>起止缓冲 · {padSeconds.toFixed(1)}s</span>
+                  <input
+                    type="range"
+                    min="0"
+                    max="3"
+                    step="0.1"
+                    value={padSeconds}
+                    onChange={(event) => setPadSeconds(Number(event.target.value))}
+                  />
+                </label>
+                <label>
+                  <span>最小响度 · {minPeakDbfs} dBFS</span>
+                  <input
+                    type="range"
+                    min="-60"
+                    max="-20"
+                    step="1"
+                    value={minPeakDbfs}
+                    onChange={(event) => setMinPeakDbfs(Number(event.target.value))}
+                  />
+                </label>
+              </section>
+
+              <section className="settingsGroup">
+                <h3>AI 增强识别</h3>
+                <label className="toggleSetting">
+                  <span>AI 识别 · {aiEnabled ? "开" : "关"}</span>
+                  <input
+                    type="checkbox"
+                    checked={aiEnabled}
+                    onChange={(event) => setAiEnabled(event.target.checked)}
+                  />
+                </label>
+                {aiEnabled && (
+                  <>
+                    <label>
+                      <span>API 端点</span>
+                      <input
+                        type="text"
+                        value={aiEndpoint}
+                        onChange={(event) => setAiEndpoint(event.target.value)}
+                        placeholder="https://api.openai.com/v1/chat/completions"
+                      />
+                    </label>
+                    <label>
+                      <span>API Key</span>
+                      <input
+                        type="password"
+                        value={aiKey}
+                        onChange={(event) => setAiKey(event.target.value)}
+                        placeholder="sk-..."
+                      />
+                    </label>
+                    <label>
+                      <span>模型</span>
+                      <input
+                        type="text"
+                        value={aiModel}
+                        onChange={(event) => setAiModel(event.target.value)}
+                        placeholder="gpt-4o-mini"
+                      />
+                    </label>
+                  </>
+                )}
+              </section>
+            </div>
+
+            <div className="modalFooter">
+              <button className="primaryButton" onClick={() => setSettingsOpen(false)}>
+                完成
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <section className="workspace">
         {audioSrc ? (
@@ -867,139 +1000,7 @@ function App() {
           </div>
         </section>
 
-        <aside className="sidePanel" aria-label="设置与事件">
-          <div className="settingsSection">
-            <h3>功能设置</h3>
-            <label className="toggleSetting">
-              <span>滤底噪 · {denoiseEnabled ? "开" : "关"}</span>
-              <input
-                type="checkbox"
-                checked={denoiseEnabled}
-                onChange={(event) => {
-                  void changeDenoiseEnabled(event.target.checked);
-                }}
-              />
-            </label>
-            <label className="toggleSetting">
-              <span>整段放大 · {amplifyEnabled ? "开" : "关"}</span>
-              <input
-                type="checkbox"
-                checked={amplifyEnabled}
-                onChange={(event) => {
-                  void changeAmplifyEnabled(event.target.checked);
-                }}
-              />
-            </label>
-            <label className="toggleSetting">
-              <span>切片 · {sliceEnabled ? "开" : "关"}</span>
-              <input
-                type="checkbox"
-                checked={sliceEnabled}
-                onChange={(event) => {
-                  void changeSliceEnabled(event.target.checked);
-                }}
-              />
-            </label>
-            <label>
-              <span>灵敏度 · {sensitivity === "high" ? "高" : sensitivity === "low" ? "低" : "中"}</span>
-              <select
-                value={sensitivity}
-                onChange={(event) => {
-                  setSensitivity(event.target.value as Sensitivity);
-                  void redetectEvents();
-                }}
-              >
-                <option value="low">低</option>
-                <option value="medium">中</option>
-                <option value="high">高</option>
-              </select>
-            </label>
-            <label>
-              <span>合并间隔 · {mergeGap.toFixed(1)}s</span>
-              <input
-                type="range"
-                min="0"
-                max="5"
-                step="0.1"
-                value={mergeGap}
-                onChange={(event) => setMergeGap(Number(event.target.value))}
-                onMouseUp={() => void redetectEvents()}
-                onTouchEnd={() => void redetectEvents()}
-              />
-            </label>
-            <label>
-              <span>起止缓冲 · {padSeconds.toFixed(1)}s</span>
-              <input
-                type="range"
-                min="0"
-                max="3"
-                step="0.1"
-                value={padSeconds}
-                onChange={(event) => setPadSeconds(Number(event.target.value))}
-                onMouseUp={() => void redetectEvents()}
-                onTouchEnd={() => void redetectEvents()}
-              />
-            </label>
-            <label>
-              <span>最小响度 · {minPeakDbfs} dBFS</span>
-              <input
-                type="range"
-                min="-90"
-                max="-10"
-                step="1"
-                value={minPeakDbfs}
-                onChange={(event) => setMinPeakDbfs(Number(event.target.value))}
-                onMouseUp={() => void redetectEvents()}
-                onTouchEnd={() => void redetectEvents()}
-              />
-            </label>
-          </div>
-
-          <div className="settingsSection">
-            <div className="sideHeader">
-              <h3>AI 增强识别</h3>
-            </div>
-            <label className="toggleSetting">
-              <span>AI 识别 · {aiEnabled ? "开" : "关"}</span>
-              <input
-                type="checkbox"
-                checked={aiEnabled}
-                onChange={(event) => setAiEnabled(event.target.checked)}
-              />
-            </label>
-            {aiEnabled && (
-              <>
-                <label>
-                  <span>API 端点</span>
-                  <input
-                    type="text"
-                    value={aiEndpoint}
-                    onChange={(event) => setAiEndpoint(event.target.value)}
-                    placeholder="https://api.openai.com/v1/chat/completions"
-                  />
-                </label>
-                <label>
-                  <span>API Key</span>
-                  <input
-                    type="password"
-                    value={aiKey}
-                    onChange={(event) => setAiKey(event.target.value)}
-                    placeholder="sk-..."
-                  />
-                </label>
-                <label>
-                  <span>模型</span>
-                  <input
-                    type="text"
-                    value={aiModel}
-                    onChange={(event) => setAiModel(event.target.value)}
-                    placeholder="gpt-4o-mini"
-                  />
-                </label>
-              </>
-            )}
-          </div>
-
+        <aside className="sidePanel" aria-label="事件详情">
           <div className="eventSection">
             <div className="sideHeader">
               <h3>{selected ? `事件 #${selected.id}` : "未选择事件"}</h3>

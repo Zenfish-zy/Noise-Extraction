@@ -148,6 +148,19 @@ button:disabled:hover {
   border-color: #5c8e7d;
 }
 
+.ghostButton {
+  background: transparent;
+  border-color: #d7cfbe;
+  color: #6b7077;
+  font-weight: 500;
+}
+
+.ghostButton:hover {
+  background: #f8f6f0;
+  border-color: #c7bfae;
+  color: #4a463d;
+}
+
 .toolButtons button.activeTool {
   border-color: #4f7e6e;
   background: #e4ece6;
@@ -625,4 +638,119 @@ input[type="password"]::placeholder {
 
 .dropdownMenu button:active {
   background: #f2ede3;
+}
+
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(74, 70, 61, 0.4);
+  backdrop-filter: blur(4px);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.modalContent {
+  width: 90%;
+  max-width: 520px;
+  max-height: 85vh;
+  background: #ffffff;
+  border: 1px solid #e2dbcb;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(74, 70, 61, 0.15);
+  display: flex;
+  flex-direction: column;
+  animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.modalHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid #e7e3da;
+}
+
+.modalHeader h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: #4a463d;
+}
+
+.modalHeader .iconButton {
+  font-size: 28px;
+  line-height: 1;
+  color: #8b8374;
+}
+
+.modalBody {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+}
+
+.settingsGroup {
+  margin-bottom: 24px;
+}
+
+.settingsGroup:last-child {
+  margin-bottom: 0;
+}
+
+.settingsGroup h3 {
+  margin: 0 0 12px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #4a463d;
+}
+
+.settingsGroup label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.settingsGroup label span {
+  font-size: 13px;
+  font-weight: 500;
+  color: #6b7077;
+}
+
+.settingsGroup .toggleSetting {
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modalFooter {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 16px 20px;
+  border-top: 1px solid #e7e3da;
 }
