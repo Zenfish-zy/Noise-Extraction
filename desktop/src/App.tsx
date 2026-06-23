@@ -223,7 +223,7 @@ function App() {
     // Auto-complete endpoint based on format
     let fullEndpoint = "";
     if (aiFormat === "openai") {
-      fullEndpoint = `${aiBaseUrl.replace(/\/$/, "")}/v1/chat/completions`;
+      fullEndpoint = `${aiBaseUrl.replace(/\/$/, "")}/v1/responses`;
     } else if (aiFormat === "anthropic") {
       fullEndpoint = `${aiBaseUrl.replace(/\/$/, "")}/v1/messages`;
     } else {
@@ -1032,7 +1032,7 @@ function App() {
                           value={aiFormat}
                           onChange={(event) => setAiFormat(event.target.value as "openai" | "anthropic" | "custom")}
                         >
-                          <option value="openai">OpenAI 格式 (自动补全 /v1/chat/completions)</option>
+                          <option value="openai">OpenAI 格式 (自动补全 /v1/responses)</option>
                           <option value="anthropic">Anthropic 格式 (自动补全 /v1/messages)</option>
                           <option value="custom">自定义格式 (完整 URL)</option>
                         </select>
