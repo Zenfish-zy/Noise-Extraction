@@ -1840,20 +1840,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "noise-evidence"
-version = "0.1.0"
-dependencies = [
- "noise-core",
- "noise-io",
- "noise-types",
- "serde",
- "serde_json",
- "tauri",
- "tauri-build",
- "tauri-plugin-dialog",
-]
-
-[[package]]
 name = "noise-io"
 version = "0.1.0"
 dependencies = [
@@ -2870,6 +2856,20 @@ dependencies = [
  "wasm-bindgen",
  "web-sys",
  "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "soundhunter"
+version = "0.1.0"
+dependencies = [
+ "noise-core",
+ "noise-io",
+ "noise-types",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-dialog",
 ]
 
 [[package]]
