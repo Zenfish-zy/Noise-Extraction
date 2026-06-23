@@ -121,6 +121,19 @@ pub struct AnalyzeResult {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct WaveformBin {
+    pub min: f32,
+    pub max: f32,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct WaveformResult {
+    pub samplerate: u32,
+    pub duration_seconds: f64,
+    pub bins: Vec<WaveformBin>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ExportResult {
     pub wav_path: String,
     pub csv_path: Option<String>,

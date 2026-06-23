@@ -65,6 +65,21 @@ The next-generation implementation uses JSON contracts to compare Python referen
 }
 ```
 
+## WaveformResult
+
+`waveform_peaks(input_path, bins)` returns a fixed-size min/max envelope for UI rendering. Samples remain in normalized mono `f32` range.
+
+```json
+{
+  "samplerate": 48000,
+  "duration_seconds": 123.45,
+  "bins": [
+    { "min": -0.12, "max": 0.18 },
+    { "min": -0.31, "max": 0.26 }
+  ]
+}
+```
+
 ## ExportResult
 
 ```json
@@ -82,6 +97,7 @@ Current next-generation support:
 
 - `noise-cli analyze-audio --input <audio> --config <json>` reads local audio files.
 - Tauri command `inspect_audio(input_path)` reads local audio metadata for import/preprocess state and returns an `AnalyzeResult` with an empty `events` list.
+- Tauri command `waveform_peaks(input_path, bins)` reads the same local audio and returns a downsampled waveform envelope for display.
 - Tauri command `analyze_audio(input_path, detect)` runs event detection only after the frontend explicitly triggers detection.
 - Supported input families are currently handled through Symphonia: `m4a/mp4/aac`, `mp3`, `wav`, `flac`, `ogg/oga`.
 - Audio is decoded to mono `f32`; multichannel files are averaged per frame.

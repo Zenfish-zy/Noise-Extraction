@@ -54,11 +54,11 @@ Current responsibilities:
 
 ### React Frontend
 
-Future responsibilities:
+Current responsibilities:
 
 - Workflow navigation.
 - Calm visual layout.
-- Waveform/timeline interaction.
+- Waveform/timeline rendering from backend-provided min/max envelopes.
 - Event review table.
 - Settings panels.
 - Export progress and result summary.
@@ -67,10 +67,11 @@ Frontend must not contain audio-processing logic.
 
 ### Tauri Backend
 
-Future responsibilities:
+Current responsibilities:
 
 - File dialogs and local file access.
 - Calling Rust core.
+- Audio inspection and waveform envelope commands.
 - Long-running task orchestration.
 - Progress events to frontend.
 - Error normalization.

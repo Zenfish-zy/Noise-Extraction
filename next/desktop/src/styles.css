@@ -234,6 +234,7 @@ button:disabled:hover {
 .waveGrid {
   position: absolute;
   inset: 34px 0;
+  z-index: 0;
   background:
     radial-gradient(ellipse at center, rgba(79, 126, 110, 0.35) 0 1px, transparent 1px),
     linear-gradient(90deg, #b7ac98 0 1px, transparent 1px);
@@ -241,10 +242,25 @@ button:disabled:hover {
   opacity: 0.28;
 }
 
+.waveBars {
+  position: absolute;
+  inset: 20px 12px;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.waveBar {
+  position: absolute;
+  min-height: 1px;
+  border-radius: 999px;
+  background: rgba(110, 104, 91, 0.5);
+}
+
 .eventBlock {
   position: absolute;
   top: 26px;
   bottom: 26px;
+  z-index: 2;
   min-width: 7px;
   border-radius: 6px;
   opacity: 0.5;
@@ -265,6 +281,7 @@ button:disabled:hover {
   position: absolute;
   top: 18px;
   bottom: 18px;
+  z-index: 3;
   min-width: 2px;
   border: 1px dashed #b05b4a;
   border-radius: 6px;
@@ -276,6 +293,7 @@ button:disabled:hover {
   position: absolute;
   top: 0;
   bottom: 0;
+  z-index: 4;
   width: 2px;
   background: #b05b4a;
 }

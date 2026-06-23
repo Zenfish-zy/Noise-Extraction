@@ -38,6 +38,17 @@ type AnalyzeResult = {
   events: CoreNoiseEvent[];
 };
 
+type WaveformBin = {
+  min: number;
+  max: number;
+};
+
+type WaveformResult = {
+  samplerate: number;
+  duration_seconds: number;
+  bins: WaveformBin[];
+};
+
 type AppConfig = {
   mode: ProcessMode;
   denoise: {
@@ -169,11 +180,13 @@ const kindTone: Record<EventKind, string> = {
 };
 
 const audioExtensions = ["m4a", "mp4", "aac", "mp3", "wav", "flac", "ogg", "oga"];
+const waveformBinCount = 720;
 
 function App() {
   const waveformRef = useRef<HTMLDivElement>(null);
   const [version, setVersion] = useState("0.1.0");
   const [analysis, setAnalysis] = useState<AnalyzeResult | null>(null);
+  const [waveformBins, setWaveformBins] = useState<WaveformBin[]>(() => buildPreviewWaveform(waveformBinCount));
   const [events, setEvents] = useState<NoiseEvent[]>(fallbackEvents);
   const [selectedEventId, setSelectedEventId] = useState<number>(fallbackEvents[0].id);
   const [selectingSpan, setSelectingSpan] = useState(false);
@@ -198,6 +211,7 @@ function App() {
         const mapped = mapCoreEvents(result.events);
         setEvents(mapped);
         setSelectedEventId(mapped[0]?.id ?? 0);
+        setWaveformBins(buildPreviewWaveform(waveformBinCount));
         setFileLabel("Rust synthetic");
         setStatus("样例分析已完成");
       })
@@ -264,10 +278,17 @@ function App() {
     setError(null);
     setStatus("正在读取音频信息");
     try {
-      const result = await invoke<AnalyzeResult>("inspect_audio", {
-        inputPath: path,
-      });
+      const [result, waveform] = await Promise.all([
+        invoke<AnalyzeResult>("inspect_audio", {
+          inputPath: path,
+        }),
+        invoke<WaveformResult>("waveform_peaks", {
+          inputPath: path,
+          bins: waveformBinCount,
+        }),
+      ]);
       setAnalysis(result);
+      setWaveformBins(waveform.bins);
       setEvents([]);
       setSelectedEventId(0);
       setFileLabel(path.split(/[\\/]/).pop() ?? path);
@@ -276,6 +297,7 @@ function App() {
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       setError(message);
+      setWaveformBins(buildPreviewWaveform(waveformBinCount));
       setStatus("录音导入失败");
     }
   }
@@ -575,6 +597,26 @@ function App() {
             }}
           >
             <div className="waveGrid" />
+            <div className="waveBars" aria-hidden="true">
+              {waveformBins.map((bin, index) => {
+                const min = clamp(bin.min, -1, 1);
+                const max = clamp(bin.max, -1, 1);
+                const top = ((1 - max) / 2) * 100;
+                const height = Math.max(((max - min) / 2) * 100, 1.2);
+                return (
+                  <span
+                    key={index}
+                    className="waveBar"
+                    style={{
+                      left: `${(index / Math.max(waveformBins.length, 1)) * 100}%`,
+                      width: `${100 / Math.max(waveformBins.length, 1)}%`,
+                      top: `${top}%`,
+                      height: `${height}%`,
+                    }}
+                  />
+                );
+              })}
+            </div>
             {events.map((event) => (
               <div
                 key={event.id}
@@ -745,6 +787,20 @@ function mapCoreEvents(events: CoreNoiseEvent[]): NoiseEvent[] {
 function toCoreEvent(event: NoiseEvent): CoreNoiseEvent {
   const { id: _id, ...coreEvent } = event;
   return coreEvent;
+}
+
+function buildPreviewWaveform(count: number): WaveformBin[] {
+  return Array.from({ length: count }, (_, index) => {
+    const x = index / Math.max(count - 1, 1);
+    const envelope = 0.18 + 0.32 * Math.sin(x * Math.PI) + 0.08 * Math.sin(x * Math.PI * 9);
+    const texture = 0.15 * Math.sin(index * 0.41) + 0.06 * Math.sin(index * 1.17);
+    const peak = clamp(envelope + texture, 0.04, 0.86);
+    return { min: -peak, max: peak };
+  });
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, value));
 }
 
 function formatTime(value: number) {

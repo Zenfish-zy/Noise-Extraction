@@ -1,5 +1,6 @@
 use noise_types::{
     AnalyzeResult, AppConfig, DetectConfig, ExportResult, NoiseEvent, ProcessMode, Sensitivity,
+    WaveformBin, WaveformResult,
 };
 
 #[tauri::command]
@@ -35,6 +36,16 @@ fn inspect_audio(input_path: String) -> Result<AnalyzeResult, String> {
         samplerate: audio.samplerate,
         duration_seconds: audio.duration_seconds,
         events: Vec::new(),
+    })
+}
+
+#[tauri::command]
+fn waveform_peaks(input_path: String, bins: usize) -> Result<WaveformResult, String> {
+    let audio = noise_io::load_audio_mono(&input_path).map_err(|err| err.to_string())?;
+    Ok(WaveformResult {
+        samplerate: audio.samplerate,
+        duration_seconds: audio.duration_seconds,
+        bins: build_waveform_bins(&audio.samples, bins),
     })
 }
 
@@ -133,6 +144,30 @@ fn fill_span(samples: &mut [f32], samplerate: u32, start: f64, end: f64, value: 
     samples[start..end].fill(value);
 }
 
+fn build_waveform_bins(samples: &[f32], bins: usize) -> Vec<WaveformBin> {
+    if samples.is_empty() || bins == 0 {
+        return Vec::new();
+    }
+
+    let len = samples.len();
+    (0..bins)
+        .filter_map(|idx| {
+            let start = idx * len / bins;
+            let mut end = ((idx + 1) * len / bins).max(start + 1);
+            if start >= len {
+                return None;
+            }
+            end = end.min(len);
+            let (mut min, mut max) = (f32::INFINITY, f32::NEG_INFINITY);
+            for sample in &samples[start..end] {
+                min = min.min(*sample);
+                max = max.max(*sample);
+            }
+            Some(WaveformBin { min, max })
+        })
+        .collect()
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -141,6 +176,7 @@ pub fn run() {
             app_version,
             analyze_synthetic,
             inspect_audio,
+            waveform_peaks,
             analyze_audio,
             manual_event,
             export_audio
@@ -166,6 +202,7 @@ mod tests {
 
         noise_io::save_wav_mono(&input_path, &[0.5; 16_000], 8_000).unwrap();
         let inspected = inspect_audio(path_string(&input_path)).unwrap();
+        let waveform = waveform_peaks(path_string(&input_path), 4).unwrap();
         let result = export_audio(
             path_string(&input_path),
             path_string(&wav_path),
@@ -183,6 +220,8 @@ mod tests {
 
         assert_eq!(inspected.samplerate, 8_000);
         assert!(inspected.events.is_empty());
+        assert_eq!(waveform.bins.len(), 4);
+        assert!(waveform.bins.iter().all(|bin| bin.max > 0.49));
         assert_eq!(result.kept_events, 1);
         assert!((result.duration_seconds - 0.25).abs() < 0.01);
         assert!((exported.duration_seconds - 0.25).abs() < 0.01);

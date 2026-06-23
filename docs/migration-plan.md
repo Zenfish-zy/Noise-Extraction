@@ -37,7 +37,7 @@ Exit criteria:
 
 ## Phase 2: UI Prototype
 
-Status: complete for live analyze/export review loop; still open for real waveform rendering and playback.
+Status: complete for live analyze/export review loop and real waveform rendering; still open for playback.
 
 Goals:
 
@@ -56,6 +56,7 @@ Exit criteria:
 - `pnpm build` passes for the React prototype.
 - Tauri shell compiles with a React frontend.
 - UI can render mock, synthetic Rust, and common audio analysis events.
+- Imported audio renders a real downsampled waveform envelope from the Rust backend.
 
 ## Phase 3: CLI Bridge
 
@@ -137,4 +138,5 @@ Exit criteria:
 - [x] Support common input formats in the next backend and frontend picker.
 - [x] Wire reviewed event keep/delete/manual state into next export.
 - [x] Split next import/preprocess from manual event detection.
+- [x] Render real waveform envelopes for imported audio in the Next UI.
 - [ ] Add parity fixtures against Python reference output.
