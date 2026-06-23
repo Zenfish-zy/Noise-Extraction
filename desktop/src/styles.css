@@ -77,10 +77,15 @@ button:disabled:hover {
 }
 
 .brandBlock h1,
-.sideHeader h2 {
+.sideHeader h2,
+.sideHeader h3 {
   margin: 0;
   font-size: 18px;
   font-weight: 700;
+}
+
+.sideHeader h3 {
+  font-size: 15px;
 }
 
 .brandBlock p,
@@ -256,6 +261,27 @@ button:disabled:hover {
   background: rgba(110, 104, 91, 0.5);
 }
 
+.emptyWaveform {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 10px;
+  color: #8b8374;
+}
+
+.emptyWaveform svg {
+  color: #4f7e6e;
+  opacity: 0.72;
+}
+
+.emptyWaveform strong {
+  font-size: 15px;
+  color: #6e685b;
+}
+
 .eventBlock {
   position: absolute;
   top: 26px;
@@ -361,7 +387,53 @@ button:disabled:hover {
 }
 
 .sidePanel {
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.settingsSection {
+  flex: 0 0 auto;
   padding: 14px;
+  border-bottom: 2px solid #e2dbcb;
+  background: #faf9f6;
+}
+
+.settingsSection h3 {
+  margin: 0 0 14px 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #4a4338;
+}
+
+.settingsSection label {
+  display: grid;
+  gap: 8px;
+  color: #6e685b;
+  margin-bottom: 12px;
+}
+
+.settingsSection .toggleSetting {
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid #e2dbcb;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 10px 12px;
+}
+
+.eventSection {
+  flex: 1 1 0;
+  padding: 14px;
+  overflow-y: auto;
+}
+
+.eventSection h3 {
+  margin: 0 0 12px 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #4a4338;
 }
 
 .detailList {
@@ -394,29 +466,6 @@ button:disabled:hover {
   margin: 0;
   font-weight: 700;
   text-align: right;
-}
-
-.settingsBox {
-  display: grid;
-  gap: 14px;
-  border-top: 1px solid #eee7dc;
-  padding-top: 14px;
-}
-
-.settingsBox label {
-  display: grid;
-  gap: 8px;
-  color: #6e685b;
-}
-
-.settingsBox .toggleSetting {
-  grid-template-columns: 1fr auto;
-  align-items: center;
-  gap: 12px;
-  border: 1px solid #e2dbcb;
-  border-radius: 8px;
-  background: #f8f6f0;
-  padding: 10px 12px;
 }
 
 input[type="checkbox"] {

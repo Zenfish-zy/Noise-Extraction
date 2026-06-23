@@ -115,61 +115,6 @@ type NoiseEvent = {
   manual: boolean;
 };
 
-const fallbackEvents: NoiseEvent[] = [
-  {
-    id: 1,
-    start: 12.4,
-    end: 13.8,
-    kind: "rumble",
-    peak_dbfs: -8.4,
-    rms_dbfs: -18.2,
-    low_ratio: 0.72,
-    high_ratio: 0.08,
-    suspect_self: false,
-    keep: true,
-    manual: false,
-  },
-  {
-    id: 2,
-    start: 25.1,
-    end: 26.0,
-    kind: "thud",
-    peak_dbfs: -5.8,
-    rms_dbfs: -16.6,
-    low_ratio: 0.61,
-    high_ratio: 0.11,
-    suspect_self: false,
-    keep: true,
-    manual: false,
-  },
-  {
-    id: 3,
-    start: 38.6,
-    end: 40.2,
-    kind: "drag",
-    peak_dbfs: -12.1,
-    rms_dbfs: -21.4,
-    low_ratio: 0.38,
-    high_ratio: 0.22,
-    suspect_self: false,
-    keep: true,
-    manual: true,
-  },
-  {
-    id: 4,
-    start: 55.3,
-    end: 55.9,
-    kind: "transient",
-    peak_dbfs: -3.2,
-    rms_dbfs: -19.0,
-    low_ratio: 0.18,
-    high_ratio: 0.44,
-    suspect_self: false,
-    keep: false,
-    manual: false,
-  },
-];
-
 const kindLabel: Record<EventKind, string> = {
   rumble: "低频闷响",
   thud: "重击",
@@ -194,24 +139,25 @@ function App() {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [version, setVersion] = useState("0.1.0");
   const [analysis, setAnalysis] = useState<AnalyzeResult | null>(null);
-  const [waveformBins, setWaveformBins] = useState<WaveformBin[]>(() => buildPreviewWaveform(waveformBinCount));
-  const [events, setEvents] = useState<NoiseEvent[]>(fallbackEvents);
-  const [selectedEventId, setSelectedEventId] = useState<number>(fallbackEvents[0].id);
+  const [waveformBins, setWaveformBins] = useState<WaveformBin[]>([]);
+  const [events, setEvents] = useState<NoiseEvent[]>([]);
+  const [selectedEventId, setSelectedEventId] = useState<number>(0);
   const [selectingSpan, setSelectingSpan] = useState(false);
   const [dragSpan, setDragSpan] = useState<{ start: number; end: number } | null>(null);
   const [audioSrc, setAudioSrc] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [playheadSec, setPlayheadSec] = useState(0);
-  const [fileLabel, setFileLabel] = useState("20260603_233810.m4a");
+  const [fileLabel, setFileLabel] = useState("等待导入录音");
   const [inputPath, setInputPath] = useState<string | null>(null);
-  const [status, setStatus] = useState("加载 Rust 合成样例");
+  const [status, setStatus] = useState("请先导入录音文件");
   const [error, setError] = useState<string | null>(null);
-  const [mode, setMode] = useState<ProcessMode>("highlight");
   const [sensitivity, setSensitivity] = useState<Sensitivity>("medium");
   const [mergeGap, setMergeGap] = useState(0.8);
   const [padSeconds, setPadSeconds] = useState(0.6);
   const [minPeakDbfs, setMinPeakDbfs] = useState(-45);
   const [denoiseEnabled, setDenoiseEnabled] = useState(true);
+  const [amplifyEnabled, setAmplifyEnabled] = useState(false);
+  const [sliceEnabled, setSliceEnabled] = useState(true);
 
   useEffect(() => {
     void invoke<string>("app_version")
@@ -231,8 +177,8 @@ function App() {
     };
   }
 
-  function gainConfig(selectedMode = mode): GainConfig {
-    if (selectedMode === "full_denoise") {
+  function gainConfig(): GainConfig {
+    if (!amplifyEnabled) {
       return {
         enabled: false,
         mode: "off",
@@ -242,7 +188,7 @@ function App() {
     }
     return {
       enabled: true,
-      mode: selectedMode === "highlight" ? "per_event" : "global",
+      mode: sliceEnabled ? "per_event" : "global",
       target_peak_dbfs: -1,
       max_gain_db: 36,
     };
@@ -258,18 +204,18 @@ function App() {
     };
   }
 
-  function appConfig(options?: { denoiseEnabled?: boolean; mode?: ProcessMode }): AppConfig {
-    const selectedMode = options?.mode ?? mode;
+  function appConfig(options?: { denoiseEnabled?: boolean }): AppConfig {
+    const mode: ProcessMode = sliceEnabled ? "highlight" : (denoiseEnabled ? "full_denoise" : "full_amplify");
     return {
-      mode: selectedMode,
+      mode,
       denoise: {
-        enabled: selectedMode !== "highlight" || (options?.denoiseEnabled ?? denoiseEnabled),
+        enabled: options?.denoiseEnabled ?? denoiseEnabled,
         noise_sample_seconds: 1,
         prop_decrease: 0.9,
         stationary: true,
       },
       detect: detectConfig(),
-      gain: gainConfig(selectedMode),
+      gain: gainConfig(),
       export: exportConfig(),
     };
   }
@@ -305,10 +251,15 @@ function App() {
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       setError(message);
-      setWaveformBins(buildPreviewWaveform(waveformBinCount));
+      setAnalysis(null);
+      setWaveformBins([]);
+      setEvents([]);
+      setSelectedEventId(0);
       setAudioSrc(null);
       setIsPlaying(false);
       setPlayheadSec(0);
+      setFileLabel("等待导入录音");
+      setInputPath(null);
       setStatus("录音导入失败");
     }
   }
@@ -357,12 +308,12 @@ function App() {
       setStatus("等待导入录音");
       return;
     }
-    if (mode === "highlight" && events.length === 0) {
+    if (sliceEnabled && events.length === 0) {
       setError("请先点击「检测事件」，再导出智能切片合集。");
       setStatus("等待检测事件");
       return;
     }
-    if (mode === "highlight" && events.every((event) => !event.keep)) {
+    if (sliceEnabled && events.every((event) => !event.keep)) {
       setError("请至少保留一个事件后再导出智能切片合集。");
       setStatus("等待复核事件");
       return;
@@ -371,7 +322,7 @@ function App() {
     const base = stripExtension(fileLabel || "noise-evidence");
     const wavPath = await save({
       title: "保存导出 WAV",
-      defaultPath: `${base}_${mode === "highlight" ? "噪音提取" : mode === "full_amplify" ? "整段放大" : "整段降噪"}.wav`,
+      defaultPath: `${base}_${sliceEnabled ? "噪音提取" : "整段处理"}.wav`,
       filters: [{ name: "WAV 音频", extensions: ["wav"] }],
     });
     if (!wavPath) {
@@ -379,7 +330,7 @@ function App() {
     }
 
     let csvPath: string | null = null;
-    if (mode === "highlight") {
+    if (sliceEnabled) {
       const selectedCsvPath = await save({
         title: "保存 CSV 证据报告",
         defaultPath: `${base}_证据报告.csv`,
@@ -398,7 +349,7 @@ function App() {
         wavPath,
         csvPath,
         config: appConfig(),
-        events: mode === "highlight" ? events.map(toCoreEvent) : null,
+        events: sliceEnabled ? events.map(toCoreEvent) : null,
       });
       setStatus(
         result.csv_path
@@ -524,24 +475,18 @@ function App() {
     }
   }
 
-  async function changeMode(nextMode: ProcessMode) {
-    setMode(nextMode);
-    setError(null);
-    if (inputPath) {
-      await inspectCurrentAudio(inputPath, appConfig({ mode: nextMode }));
-    }
-  }
-
+  const hasInput = inputPath !== null;
   const kept = events.filter((event) => event.keep);
   const keptSeconds = kept.reduce((sum, event) => sum + event.end - event.start, 0);
-  const durationSeconds = Math.max(analysis?.duration_seconds ?? 70, 1);
+  const durationSeconds = Math.max(analysis?.duration_seconds ?? 1, 1);
   const selected = events.find((event) => event.id === selectedEventId) ?? events[0] ?? null;
   const dragLeft = dragSpan ? (Math.min(dragSpan.start, dragSpan.end) / durationSeconds) * 100 : 0;
   const dragWidth = dragSpan ? (Math.abs(dragSpan.end - dragSpan.start) / durationSeconds) * 100 : 0;
   const playheadLeft = (Math.max(0, Math.min(playheadSec, durationSeconds)) / durationSeconds) * 100;
-  const effectiveDenoiseEnabled = mode !== "highlight" || denoiseEnabled;
   const exportSummary =
-    mode === "highlight"
+    !hasInput
+      ? "等待导入录音"
+      : sliceEnabled
       ? `合集约 ${keptSeconds.toFixed(1)} 秒 · WAV + CSV`
       : `${durationSeconds.toFixed(1)} 秒 · 仅 WAV`;
 
@@ -553,36 +498,9 @@ function App() {
             <Volume2 size={22} />
           </div>
           <div>
-            <h1>楼上噪音取证助手</h1>
-            <p>Next workspace · v{version}</p>
+            <h1>寻音殿</h1>
+            <p>v{version}</p>
           </div>
-        </div>
-
-        <div className="modeGroup" aria-label="处理模式">
-          <button
-            className={`modeButton ${mode === "full_denoise" ? "active" : ""}`}
-            onClick={() => {
-              void changeMode("full_denoise");
-            }}
-          >
-            整段降噪
-          </button>
-          <button
-            className={`modeButton ${mode === "full_amplify" ? "active" : ""}`}
-            onClick={() => {
-              void changeMode("full_amplify");
-            }}
-          >
-            整段放大
-          </button>
-          <button
-            className={`modeButton ${mode === "highlight" ? "active" : ""}`}
-            onClick={() => {
-              void changeMode("highlight");
-            }}
-          >
-            智能切片
-          </button>
         </div>
 
         <div className="topActions">
@@ -609,10 +527,10 @@ function App() {
           />
         ) : null}
         <aside className="flowRail" aria-label="流程">
-          <Step active icon={<FileAudio size={18} />} label="导入" value="已加载" />
-          <Step active icon={<Settings2 size={18} />} label="预处理" value={effectiveDenoiseEnabled ? "滤底噪" : "原始"} />
-          <Step active icon={<ScanLine size={18} />} label="检测" value={`${events.length} 段`} />
-          <Step icon={<ListChecks size={18} />} label="复核" value={`${kept.length} 保留`} />
+          <Step active={hasInput} icon={<FileAudio size={18} />} label="导入" value={hasInput ? "已加载" : "待导入"} />
+          <Step active={hasInput} icon={<Settings2 size={18} />} label="预处理" value={hasInput ? (denoiseEnabled ? "滤底噪" : "原始") : "待处理"} />
+          <Step active={events.length > 0} icon={<ScanLine size={18} />} label="检测" value={hasInput ? `${events.length} 段` : "待检测"} />
+          <Step active={kept.length > 0} icon={<ListChecks size={18} />} label="复核" value={`${kept.length} 保留`} />
           <Step icon={<Download size={18} />} label="导出" value="待确认" />
         </aside>
 
@@ -620,14 +538,19 @@ function App() {
           <div className="toolbar">
             <div className="fileMeta">
               <strong>{fileLabel}</strong>
-              <span>
-                {status} · {durationSeconds.toFixed(1)}s
-              </span>
+              <span>{hasInput ? `${status} · ${durationSeconds.toFixed(1)}s` : status}</span>
             </div>
             <div className="toolButtons">
               <button onClick={() => void togglePlayback()} disabled={!audioSrc}>
                 {isPlaying ? <Pause size={17} /> : <Play size={17} />}
                 {isPlaying ? "暂停" : "播放"}
+              </button>
+              <button
+                className={sliceEnabled ? "activeTool" : ""}
+                onClick={() => setSliceEnabled(!sliceEnabled)}
+              >
+                <Scissors size={17} />
+                智能切片
               </button>
               <button
                 onClick={() => {
@@ -672,6 +595,12 @@ function App() {
             }}
           >
             <div className="waveGrid" />
+            {!hasInput ? (
+              <div className="emptyWaveform">
+                <FileAudio size={30} />
+                <strong>等待导入录音</strong>
+              </div>
+            ) : null}
             <div className="waveBars" aria-hidden="true">
               {waveformBins.map((bin, index) => {
                 const min = clamp(bin.min, -1, 1);
@@ -756,43 +685,25 @@ function App() {
           </div>
         </section>
 
-        <aside className="sidePanel" aria-label="当前事件">
-          <div className="sideHeader">
-            <h2>{selected ? `事件 #${selected.id}` : "未选择事件"}</h2>
-            <button className="iconButton" aria-label="事件说明">
-              <Info size={16} />
-            </button>
-          </div>
-          {selected ? (
-            <dl className="detailList">
-              <div>
-                <dt>时间</dt>
-                <dd>
-                  {formatTime(selected.start)} - {formatTime(selected.end)}
-                </dd>
-              </div>
-              <div>
-                <dt>类型</dt>
-                <dd>{kindLabel[selected.kind]}</dd>
-              </div>
-              <div>
-                <dt>峰值</dt>
-                <dd>{selected.peak_dbfs.toFixed(1)} dBFS</dd>
-              </div>
-            </dl>
-          ) : (
-            <div className="emptyState">暂无事件</div>
-          )}
-          <div className="settingsBox">
+        <aside className="sidePanel" aria-label="设置与事件">
+          <div className="settingsSection">
+            <h3>功能设置</h3>
             <label className="toggleSetting">
-              <span>滤底噪 · {mode === "highlight" ? (denoiseEnabled ? "开" : "关") : "必开"}</span>
+              <span>滤底噪 · {denoiseEnabled ? "开" : "关"}</span>
               <input
                 type="checkbox"
-                checked={effectiveDenoiseEnabled}
-                disabled={mode !== "highlight"}
+                checked={denoiseEnabled}
                 onChange={(event) => {
                   void changeDenoiseEnabled(event.target.checked);
                 }}
+              />
+            </label>
+            <label className="toggleSetting">
+              <span>整段放大 · {amplifyEnabled ? "开" : "关"}</span>
+              <input
+                type="checkbox"
+                checked={amplifyEnabled}
+                onChange={(event) => setAmplifyEnabled(event.target.checked)}
               />
             </label>
             <label>
@@ -837,6 +748,35 @@ function App() {
               />
             </label>
           </div>
+
+          <div className="eventSection">
+            <div className="sideHeader">
+              <h3>{selected ? `事件 #${selected.id}` : "未选择事件"}</h3>
+              <button className="iconButton" aria-label="事件说明">
+                <Info size={16} />
+              </button>
+            </div>
+            {selected ? (
+              <dl className="detailList">
+                <div>
+                  <dt>时间</dt>
+                  <dd>
+                    {formatTime(selected.start)} - {formatTime(selected.end)}
+                  </dd>
+                </div>
+                <div>
+                  <dt>类型</dt>
+                  <dd>{kindLabel[selected.kind]}</dd>
+                </div>
+                <div>
+                  <dt>峰值</dt>
+                  <dd>{selected.peak_dbfs.toFixed(1)} dBFS</dd>
+                </div>
+              </dl>
+            ) : (
+              <div className="emptyState">暂无事件</div>
+            )}
+          </div>
         </aside>
       </section>
 
@@ -845,7 +785,7 @@ function App() {
           <strong>{kept.length} 段保留</strong>
           <span>{exportSummary}</span>
         </div>
-        <button className="primaryButton" onClick={exportEvidence}>
+        <button className="primaryButton" onClick={exportEvidence} disabled={!hasInput || (sliceEnabled && events.length === 0)}>
           <Download size={18} />
           导出证据
         </button>
@@ -873,16 +813,6 @@ function mapCoreEvents(events: CoreNoiseEvent[]): NoiseEvent[] {
 function toCoreEvent(event: NoiseEvent): CoreNoiseEvent {
   const { id: _id, ...coreEvent } = event;
   return coreEvent;
-}
-
-function buildPreviewWaveform(count: number): WaveformBin[] {
-  return Array.from({ length: count }, (_, index) => {
-    const x = index / Math.max(count - 1, 1);
-    const envelope = 0.18 + 0.32 * Math.sin(x * Math.PI) + 0.08 * Math.sin(x * Math.PI * 9);
-    const texture = 0.15 * Math.sin(index * 0.41) + 0.06 * Math.sin(index * 1.17);
-    const peak = clamp(envelope + texture, 0.04, 0.86);
-    return { min: -peak, max: peak };
-  });
 }
 
 function clamp(value: number, min: number, max: number) {
