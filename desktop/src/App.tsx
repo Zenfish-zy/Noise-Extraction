@@ -710,14 +710,7 @@ function App() {
       setStatus("正在使用 AI 识别事件");
       setImportProgress({ stage: "AI 正在分析音频", percent: 50 });
       try {
-        // TODO: 调用后端 AI 识别接口
-        // const result = await invoke<AnalyzeResult>("ai_detect_events", {
-        //   inputPath,
-        //   config: appConfig(),
-        // });
-
-        // 临时：调用传统算法 + 提示
-        const result = await invoke<AnalyzeResult>("analyze_audio", {
+        const result = await invoke<AnalyzeResult>("ai_detect_events", {
           inputPath,
           config: appConfig(),
         });
@@ -727,7 +720,6 @@ function App() {
         setImportProgress({ stage: `AI 识别完成 · ${result.events.length} 段`, percent: 100 });
         setTimeout(() => setImportProgress(null), 800);
         setStatus(`AI 识别完成 · ${result.events.length} 段`);
-        setError("注意：AI 识别功能正在开发中，当前使用传统算法");
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         setError(message);
@@ -812,20 +804,17 @@ function App() {
     setStatus("正在使用 AI 处理音频");
     setImportProgress({ stage: "AI 正在增强音频", percent: 50 });
     try {
-      // TODO: 调用后端 AI 音频处理接口
-      // const result = await invoke("ai_process_audio", {
-      //   inputPath,
-      //   config: appConfig()
-      // });
-      // await inspectCurrentAudio(inputPath);
+      const result = await invoke<string>("ai_process_audio", {
+        inputPath,
+        config: appConfig(),
+      });
 
-      // 临时：模拟处理
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      // TODO: 刷新音频预览
+      // await inspectCurrentAudio(result);
 
       setImportProgress({ stage: "AI 处理完成", percent: 100 });
       setTimeout(() => setImportProgress(null), 800);
       setStatus("AI 处理完成");
-      setError("注意：AI 音频处理功能正在开发中，当前为模拟处理");
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       setError(message);
@@ -838,19 +827,8 @@ function App() {
     setProxyScanning(true);
     setProxyResults([]);
     try {
-      // TODO: 调用后端扫描本地代理
-      // const results = await invoke<Array<{ url: string; available: boolean; name: string }>>("scan_local_proxy");
-      // setProxyResults(results);
-
-      // 临时模拟结果（实际需要后端实现）
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-      const mockResults = [
-        { url: "http://127.0.0.1:7890", available: true, name: "Clash" },
-        { url: "socks5://127.0.0.1:10808", available: true, name: "V2Ray SOCKS5" },
-        { url: "http://127.0.0.1:10809", available: false, name: "V2Ray HTTP" },
-        { url: "socks5://127.0.0.1:1080", available: false, name: "Shadowsocks" },
-      ];
-      setProxyResults(mockResults);
+      const results = await invoke<Array<{ url: string; available: boolean; name: string }>>("scan_local_proxy");
+      setProxyResults(results);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       setError(`代理扫描失败: ${message}`);

@@ -280,6 +280,98 @@ async fn ai_enhance_events(
     Ok(enhanced)
 }
 
+#[derive(serde::Serialize)]
+struct ProxyResult {
+    url: String,
+    available: bool,
+    name: String,
+}
+
+#[tauri::command]
+async fn scan_local_proxy() -> Result<Vec<ProxyResult>, String> {
+    let ports = vec![
+        (7890, "http", "Clash"),
+        (10808, "socks5", "V2Ray SOCKS5"),
+        (10809, "http", "V2Ray HTTP"),
+        (1080, "socks5", "Shadowsocks"),
+    ];
+
+    let mut results = Vec::new();
+    for (port, protocol, name) in ports {
+        let url = format!("{}://127.0.0.1:{}", protocol, port);
+        let available = check_port_available(port).await;
+        results.push(ProxyResult {
+            url,
+            available,
+            name: name.to_string(),
+        });
+    }
+
+    Ok(results)
+}
+
+async fn check_port_available(port: u16) -> bool {
+    use std::time::Duration;
+
+    let addr = format!("127.0.0.1:{}", port);
+    match std::net::TcpStream::connect_timeout(
+        &addr.parse().unwrap(),
+        Duration::from_millis(500),
+    ) {
+        Ok(_) => true,
+        Err(_) => false,
+    }
+}
+
+#[tauri::command]
+async fn ai_detect_events(
+    input_path: String,
+    config: AppConfig,
+) -> Result<AnalyzeResult, String> {
+    if !config.ai.enabled || config.ai.api_key.is_empty() {
+        return Err("AI 功能未启用或 API Key 未配置".to_string());
+    }
+
+    // Load audio
+    let audio = noise_io::load_audio_mono(&input_path).map_err(|e| e.to_string())?;
+
+    // TODO: 实现 AI 事件识别
+    // 1. 提取音频特征（能量包络、频谱特征等）
+    // 2. 调用 LLM API 分析音频特征
+    // 3. 解析 AI 返回的事件列表
+
+    // 临时：使用传统算法 + AI 增强
+    let mut events = noise_core::detect_events(&audio.samples, audio.samplerate, &config.detect);
+
+    // 使用 AI 增强事件分类
+    events = ai_enhance_events(events, config.clone()).await?;
+
+    Ok(AnalyzeResult {
+        samplerate: audio.samplerate,
+        duration_seconds: audio.duration_seconds,
+        events,
+    })
+}
+
+#[tauri::command]
+async fn ai_process_audio(
+    _input_path: String,
+    config: AppConfig,
+) -> Result<String, String> {
+    if !config.ai.enabled || config.ai.api_key.is_empty() {
+        return Err("AI 功能未启用或 API Key 未配置".to_string());
+    }
+
+    // TODO: 实现 AI 音频处理
+    // 1. 读取音频
+    // 2. 调用 LLM API 进行智能降噪和增强
+    // 3. 保存处理后的音频
+    // 4. 返回新文件路径
+
+    // 临时：返回原始路径（未实际处理）
+    Err("AI 音频处理功能正在开发中".to_string())
+}
+
 fn synthetic_demo_signal() -> (Vec<f32>, u32, f64) {
     let samplerate = 8000_u32;
     let duration_seconds = 8.0_f64;
@@ -349,7 +441,10 @@ pub fn run() {
             analyze_audio,
             manual_event,
             export_audio,
-            ai_enhance_events
+            ai_enhance_events,
+            scan_local_proxy,
+            ai_detect_events,
+            ai_process_audio
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
