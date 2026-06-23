@@ -112,6 +112,8 @@ const kindTone: Record<EventKind, string> = {
   other: "#968e7e",
 };
 
+const audioExtensions = ["m4a", "mp4", "aac", "mp3", "wav", "flac", "ogg", "oga"];
+
 function App() {
   const [version, setVersion] = useState("0.1.0");
   const [analysis, setAnalysis] = useState<AnalyzeResult | null>(null);
@@ -194,44 +196,44 @@ function App() {
     };
   }
 
-  async function analyzeCurrentWav(path: string) {
+  async function analyzeCurrentAudio(path: string) {
     setError(null);
-    setStatus("正在分析 WAV");
+    setStatus("正在分析音频");
     try {
-      const result = await invoke<AnalyzeResult>("analyze_wav", {
+      const result = await invoke<AnalyzeResult>("analyze_audio", {
         inputPath: path,
         detect: detectConfig(),
       });
       setAnalysis(result);
       setFileLabel(path.split(/[\\/]/).pop() ?? path);
       setInputPath(path);
-      setStatus(`WAV 分析完成 · ${result.events.length} 段`);
+      setStatus(`音频分析完成 · ${result.events.length} 段`);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       setError(message);
-      setStatus("WAV 分析失败");
+      setStatus("音频分析失败");
     }
   }
 
-  async function importWav() {
+  async function importAudio() {
     setError(null);
     const selected = await open({
       multiple: false,
       directory: false,
-      title: "选择 WAV 录音",
-      filters: [{ name: "WAV 音频", extensions: ["wav"] }],
+      title: "选择录音文件",
+      filters: [{ name: "音频文件", extensions: audioExtensions }],
     });
     if (typeof selected !== "string") {
       return;
     }
 
-    await analyzeCurrentWav(selected);
+    await analyzeCurrentAudio(selected);
   }
 
   async function exportEvidence() {
     setError(null);
     if (!inputPath) {
-      setError("请先导入 WAV 录音。");
+      setError("请先导入录音文件。");
       setStatus("等待导入录音");
       return;
     }
@@ -331,7 +333,7 @@ function App() {
         </div>
 
         <div className="topActions">
-          <button className="primaryButton" onClick={importWav}>
+          <button className="primaryButton" onClick={importAudio}>
             <FileAudio size={18} />
             导入录音
           </button>
@@ -367,7 +369,7 @@ function App() {
               <button
                 onClick={() => {
                   if (inputPath) {
-                    void analyzeCurrentWav(inputPath);
+                    void analyzeCurrentAudio(inputPath);
                   }
                 }}
                 disabled={!inputPath}

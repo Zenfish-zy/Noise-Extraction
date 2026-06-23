@@ -23,8 +23,8 @@ next/
 ```powershell
 cargo test --manifest-path next/Cargo.toml
 cargo run --manifest-path next/Cargo.toml -p noise-cli -- analyze-synthetic --config next/fixtures/synthetic-close-peaks.config.json
-cargo run --manifest-path next/Cargo.toml -p noise-cli -- analyze-wav --input path/to/input.wav --config next/fixtures/synthetic-close-peaks.config.json
-cargo run --manifest-path next/Cargo.toml -p noise-cli -- export-wav --input path/to/input.wav --output path/to/output.wav --csv path/to/report.csv --config next/fixtures/synthetic-close-peaks.config.json
+cargo run --manifest-path next/Cargo.toml -p noise-cli -- analyze-audio --input path/to/input.m4a --config next/fixtures/synthetic-close-peaks.config.json
+cargo run --manifest-path next/Cargo.toml -p noise-cli -- export-audio --input path/to/input.m4a --output path/to/output.wav --csv path/to/report.csv --config next/fixtures/synthetic-close-peaks.config.json
 ```
 
 ## Rules

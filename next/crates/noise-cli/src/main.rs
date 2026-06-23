@@ -33,10 +33,10 @@ fn run() -> Result<(), String> {
             println!("{json}");
             Ok(())
         }
-        "analyze-wav" => {
+        "analyze-audio" | "analyze-wav" => {
             let parsed = parse_analyze_wav_args(args.collect())?;
             let config = read_config(&parsed.config_path)?;
-            let audio = noise_io::load_wav_mono(&parsed.input_path)
+            let audio = noise_io::load_audio_mono(&parsed.input_path)
                 .map_err(|err| format!("failed to load input audio: {err}"))?;
             let events =
                 noise_core::detect_events(&audio.samples, audio.samplerate, &config.detect);
@@ -49,7 +49,7 @@ fn run() -> Result<(), String> {
             println!("{json}");
             Ok(())
         }
-        "export-wav" => {
+        "export-audio" | "export-wav" => {
             let parsed = parse_export_wav_args(args.collect())?;
             let config = read_config(&parsed.config_path)?;
             let result = export_wav(
@@ -67,7 +67,7 @@ fn run() -> Result<(), String> {
 }
 
 fn usage() -> String {
-    "usage: noise-cli analyze-synthetic --config <path>\n       noise-cli analyze-wav --input <wav> --config <path>\n       noise-cli export-wav --input <wav> --output <wav> --config <path> [--csv <report.csv>]".to_string()
+    "usage: noise-cli analyze-synthetic --config <path>\n       noise-cli analyze-audio --input <audio> --config <path>\n       noise-cli export-audio --input <audio> --output <wav> --config <path> [--csv <report.csv>]".to_string()
 }
 
 fn parse_config_arg(args: Vec<String>) -> Result<PathBuf, String> {
@@ -117,7 +117,7 @@ fn parse_analyze_wav_args(args: Vec<String>) -> Result<AnalyzeWavArgs, String> {
         }
     }
     Ok(AnalyzeWavArgs {
-        input_path: input_path.ok_or_else(|| "missing required --input <wav>".to_string())?,
+        input_path: input_path.ok_or_else(|| "missing required --input <audio>".to_string())?,
         config_path: config_path.ok_or_else(|| "missing required --config <path>".to_string())?,
     })
 }
@@ -158,7 +158,7 @@ fn parse_export_wav_args(args: Vec<String>) -> Result<ExportWavArgs, String> {
         }
     }
     Ok(ExportWavArgs {
-        input_path: input_path.ok_or_else(|| "missing required --input <wav>".to_string())?,
+        input_path: input_path.ok_or_else(|| "missing required --input <audio>".to_string())?,
         output_path: output_path.ok_or_else(|| "missing required --output <wav>".to_string())?,
         config_path: config_path.ok_or_else(|| "missing required --config <path>".to_string())?,
         csv_path,
@@ -178,7 +178,7 @@ fn export_wav(
     csv_path: Option<&PathBuf>,
     config: &AppConfig,
 ) -> Result<ExportResult, String> {
-    let audio = noise_io::load_wav_mono(input_path)
+    let audio = noise_io::load_audio_mono(input_path)
         .map_err(|err| format!("failed to load input audio: {err}"))?;
     let events = if config.mode == ProcessMode::Highlight {
         noise_core::detect_events(&audio.samples, audio.samplerate, &config.detect)

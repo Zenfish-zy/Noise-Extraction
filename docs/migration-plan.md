@@ -59,12 +59,12 @@ Exit criteria:
 
 ## Phase 3: CLI Bridge
 
-Status: complete for WAV analyze/export commands; still open for progress events.
+Status: complete for common audio analyze/export commands; still open for progress events.
 
 Goals:
 
 - Add `next/crates/noise-cli`.
-- Provide CLI commands for synthetic analysis, WAV analysis, and WAV export.
+- Provide CLI commands for synthetic analysis, common audio analysis, and WAV/CSV export.
 - Let Tauri call backend commands that return `AnalyzeResult`.
 - Keep JSON output compatible with `docs/data-contracts.md`.
 

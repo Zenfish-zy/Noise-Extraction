@@ -27,8 +27,8 @@ fn analyze_synthetic() -> AnalyzeResult {
 }
 
 #[tauri::command]
-fn analyze_wav(input_path: String, detect: DetectConfig) -> Result<AnalyzeResult, String> {
-    let audio = noise_io::load_wav_mono(&input_path).map_err(|err| err.to_string())?;
+fn analyze_audio(input_path: String, detect: DetectConfig) -> Result<AnalyzeResult, String> {
+    let audio = noise_io::load_audio_mono(&input_path).map_err(|err| err.to_string())?;
     let events = noise_core::detect_events(&audio.samples, audio.samplerate, &detect);
     Ok(AnalyzeResult {
         samplerate: audio.samplerate,
@@ -44,7 +44,7 @@ fn export_audio(
     csv_path: Option<String>,
     config: AppConfig,
 ) -> Result<ExportResult, String> {
-    let audio = noise_io::load_wav_mono(&input_path).map_err(|err| err.to_string())?;
+    let audio = noise_io::load_audio_mono(&input_path).map_err(|err| err.to_string())?;
     let events = if config.mode == ProcessMode::Highlight {
         noise_core::detect_events(&audio.samples, audio.samplerate, &config.detect)
     } else {
@@ -118,7 +118,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             app_version,
             analyze_synthetic,
-            analyze_wav,
+            analyze_audio,
             export_audio
         ])
         .run(tauri::generate_context!())

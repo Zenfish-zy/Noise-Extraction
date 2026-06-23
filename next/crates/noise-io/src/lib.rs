@@ -4,6 +4,13 @@ use std::io::Write;
 use std::path::Path;
 
 use noise_types::{EventKind, NoiseEvent};
+use symphonia::core::audio::SampleBuffer;
+use symphonia::core::codecs::{CODEC_TYPE_NULL, DecoderOptions};
+use symphonia::core::errors::Error as SymphoniaError;
+use symphonia::core::formats::FormatOptions;
+use symphonia::core::io::MediaSourceStream;
+use symphonia::core::meta::MetadataOptions;
+use symphonia::core::probe::Hint;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct DecodedAudio {
@@ -16,7 +23,7 @@ pub struct DecodedAudio {
 pub enum AudioIoError {
     Open {
         path: String,
-        source: hound::Error,
+        source: std::io::Error,
     },
     CreateDir {
         path: String,
@@ -30,7 +37,9 @@ pub enum AudioIoError {
         path: String,
         source: std::io::Error,
     },
-    Decode(hound::Error),
+    Probe(SymphoniaError),
+    Unsupported(String),
+    Decode(SymphoniaError),
     Write(hound::Error),
     Csv(csv::Error),
     Flush(std::io::Error),
@@ -41,7 +50,7 @@ impl fmt::Display for AudioIoError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             AudioIoError::Open { path, source } => {
-                write!(f, "failed to open WAV '{}': {source}", path)
+                write!(f, "failed to open audio file '{}': {source}", path)
             }
             AudioIoError::CreateDir { path, source } => {
                 write!(f, "failed to create parent directory '{}': {source}", path)
@@ -52,7 +61,9 @@ impl fmt::Display for AudioIoError {
             AudioIoError::CreateFile { path, source } => {
                 write!(f, "failed to create file '{}': {source}", path)
             }
-            AudioIoError::Decode(source) => write!(f, "failed to decode WAV samples: {source}"),
+            AudioIoError::Probe(source) => write!(f, "failed to probe audio format: {source}"),
+            AudioIoError::Unsupported(message) => write!(f, "unsupported audio format: {message}"),
+            AudioIoError::Decode(source) => write!(f, "failed to decode audio samples: {source}"),
             AudioIoError::Write(source) => write!(f, "failed to write audio samples: {source}"),
             AudioIoError::Csv(source) => write!(f, "failed to write CSV report: {source}"),
             AudioIoError::Flush(source) => write!(f, "failed to flush output file: {source}"),
@@ -63,57 +74,81 @@ impl fmt::Display for AudioIoError {
 
 impl std::error::Error for AudioIoError {}
 
-pub fn load_wav_mono(path: impl AsRef<Path>) -> Result<DecodedAudio, AudioIoError> {
+pub fn load_audio_mono(path: impl AsRef<Path>) -> Result<DecodedAudio, AudioIoError> {
     let path_ref = path.as_ref();
-    let mut reader = hound::WavReader::open(path_ref).map_err(|source| AudioIoError::Open {
+    let src = fs::File::open(path_ref).map_err(|source| AudioIoError::Open {
         path: path_ref.display().to_string(),
         source,
     })?;
-    let spec = reader.spec();
-    if spec.channels == 0 {
-        return Err(AudioIoError::InvalidFormat(
-            "channel count must be greater than zero".to_string(),
-        ));
+    let mss = MediaSourceStream::new(Box::new(src), Default::default());
+    let mut hint = Hint::new();
+    if let Some(ext) = path_ref.extension().and_then(|value| value.to_str()) {
+        hint.with_extension(ext);
     }
-    if spec.sample_rate == 0 {
-        return Err(AudioIoError::InvalidFormat(
-            "sample rate must be greater than zero".to_string(),
-        ));
-    }
+    let probed = symphonia::default::get_probe()
+        .format(
+            &hint,
+            mss,
+            &FormatOptions::default(),
+            &MetadataOptions::default(),
+        )
+        .map_err(AudioIoError::Probe)?;
+    let mut format = probed.format;
+    let track = format
+        .tracks()
+        .iter()
+        .find(|track| track.codec_params.codec != CODEC_TYPE_NULL)
+        .ok_or_else(|| AudioIoError::Unsupported("no supported audio track found".to_string()))?;
+    let track_id = track.id;
+    let sample_rate = track
+        .codec_params
+        .sample_rate
+        .ok_or_else(|| AudioIoError::Unsupported("audio track has no sample rate".to_string()))?;
+    let mut decoder = symphonia::default::get_codecs()
+        .make(&track.codec_params, &DecoderOptions::default())
+        .map_err(AudioIoError::Decode)?;
+    let mut samples = Vec::new();
 
-    let channels = spec.channels as usize;
-    let samples = match spec.sample_format {
-        hound::SampleFormat::Float => {
-            let raw = reader
-                .samples::<f32>()
-                .collect::<Result<Vec<_>, _>>()
-                .map_err(AudioIoError::Decode)?;
-            mix_to_mono(raw.into_iter(), channels)
-        }
-        hound::SampleFormat::Int => {
-            if spec.bits_per_sample == 0 || spec.bits_per_sample > 32 {
-                return Err(AudioIoError::InvalidFormat(format!(
-                    "unsupported integer bit depth: {}",
-                    spec.bits_per_sample
-                )));
+    loop {
+        let packet = match format.next_packet() {
+            Ok(packet) => packet,
+            Err(SymphoniaError::IoError(err))
+                if err.kind() == std::io::ErrorKind::UnexpectedEof =>
+            {
+                break;
             }
-            let scale = ((1_i64 << (spec.bits_per_sample - 1)) - 1).max(1) as f32;
-            let raw = reader
-                .samples::<i32>()
-                .collect::<Result<Vec<_>, _>>()
-                .map_err(AudioIoError::Decode)?;
-            mix_to_mono(
-                raw.into_iter().map(|sample| sample as f32 / scale),
-                channels,
-            )
+            Err(SymphoniaError::ResetRequired) => break,
+            Err(err) => return Err(AudioIoError::Decode(err)),
+        };
+        if packet.track_id() != track_id {
+            continue;
         }
-    };
+        let decoded = match decoder.decode(&packet) {
+            Ok(decoded) => decoded,
+            Err(SymphoniaError::DecodeError(_)) => continue,
+            Err(SymphoniaError::IoError(_)) => continue,
+            Err(err) => return Err(AudioIoError::Decode(err)),
+        };
+        let channels = decoded.spec().channels.count();
+        if channels == 0 {
+            return Err(AudioIoError::InvalidFormat(
+                "channel count must be greater than zero".to_string(),
+            ));
+        }
+        let mut buffer = SampleBuffer::<f32>::new(decoded.capacity() as u64, *decoded.spec());
+        buffer.copy_interleaved_ref(decoded);
+        samples.extend(mix_to_mono(buffer.samples().iter().copied(), channels));
+    }
 
     Ok(DecodedAudio {
-        duration_seconds: samples.len() as f64 / spec.sample_rate as f64,
+        duration_seconds: samples.len() as f64 / sample_rate as f64,
         samples,
-        samplerate: spec.sample_rate,
+        samplerate: sample_rate,
     })
+}
+
+pub fn load_wav_mono(path: impl AsRef<Path>) -> Result<DecodedAudio, AudioIoError> {
+    load_audio_mono(path)
 }
 
 pub fn save_wav_mono(

@@ -80,15 +80,16 @@ The next-generation implementation uses JSON contracts to compare Python referen
 
 Current next-generation support:
 
-- `noise-cli analyze-wav --input <wav> --config <json>` reads local WAV files.
-- Tauri command `analyze_wav(input_path, detect)` reads local WAV files selected by the frontend dialog.
-- WAV is decoded to mono `f32`; multichannel files are averaged per frame.
-- `noise-cli export-wav --input <wav> --output <wav> --config <json> [--csv <report.csv>]` writes a WAV export and, in highlight mode, an optional CSV report.
+- `noise-cli analyze-audio --input <audio> --config <json>` reads local audio files.
+- Tauri command `analyze_audio(input_path, detect)` reads local audio files selected by the frontend dialog.
+- Supported input families are currently handled through Symphonia: `m4a/mp4/aac`, `mp3`, `wav`, `flac`, `ogg/oga`.
+- Audio is decoded to mono `f32`; multichannel files are averaged per frame.
+- `noise-cli export-audio --input <audio> --output <wav> --config <json> [--csv <report.csv>]` writes a WAV export and, in highlight mode, an optional CSV report.
 - Tauri command `export_audio(input_path, wav_path, csv_path, config)` writes full-mode WAV or highlight-mode WAV + CSV.
 
 Current limitations:
 
-- `m4a`, `mp3`, `aac`, `flac`, and `ogg` are still handled by the Python reference app only.
+- Exotic codecs outside Symphonia's enabled decoders may still need the Python reference app or a future ffmpeg fallback.
 - Noise reduction is not yet implemented in the Rust backend.
 
 ## ErrorResult
