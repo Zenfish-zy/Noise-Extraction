@@ -239,3 +239,40 @@ fn synthetic_close_peaks() -> (Vec<f32>, u32, f64) {
     samples[second_start..second_end].fill(0.65);
     (samples, samplerate, duration_seconds)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::Value;
+
+    #[test]
+    fn synthetic_analysis_matches_expected_fixture_ranges() {
+        let fixture_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("..")
+            .join("..")
+            .join("fixtures");
+        let config = read_config(&fixture_dir.join("synthetic-close-peaks.config.json")).unwrap();
+        let expected: Value = serde_json::from_str(
+            &fs::read_to_string(fixture_dir.join("synthetic-close-peaks.expected.json")).unwrap(),
+        )
+        .unwrap();
+
+        let (samples, samplerate, duration_seconds) = synthetic_close_peaks();
+        let events = noise_core::detect_events(&samples, samplerate, &config.detect);
+
+        assert_eq!(samplerate, expected["samplerate"].as_u64().unwrap() as u32);
+        assert!((duration_seconds - expected["duration_seconds"].as_f64().unwrap()).abs() < 1e-9);
+        let expected_events = expected["events"].as_array().unwrap();
+        assert_eq!(events.len(), expected_events.len());
+        for (event, expected_event) in events.iter().zip(expected_events) {
+            let start_range = expected_event["start_range"].as_array().unwrap();
+            let end_range = expected_event["end_range"].as_array().unwrap();
+            assert!(event.start >= start_range[0].as_f64().unwrap());
+            assert!(event.start <= start_range[1].as_f64().unwrap());
+            assert!(event.end >= end_range[0].as_f64().unwrap());
+            assert!(event.end <= end_range[1].as_f64().unwrap());
+            assert_eq!(event.manual, expected_event["manual"].as_bool().unwrap());
+            assert_eq!(event.keep, expected_event["keep"].as_bool().unwrap());
+        }
+    }
+}

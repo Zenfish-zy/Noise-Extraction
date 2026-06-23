@@ -141,4 +141,5 @@ Exit criteria:
 - [x] Split next import/preprocess from manual event detection.
 - [x] Render real waveform envelopes for imported audio in the Next UI.
 - [x] Add preview-WAV local playback and waveform click-to-seek in the Next UI.
-- [ ] Add parity fixtures against Python reference output.
+- [x] Add parity fixtures against Python reference output.
+- [ ] Add Tauri package smoke test.
