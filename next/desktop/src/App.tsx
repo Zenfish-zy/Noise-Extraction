@@ -211,27 +211,12 @@ function App() {
   const [mergeGap, setMergeGap] = useState(0.8);
   const [padSeconds, setPadSeconds] = useState(0.6);
   const [minPeakDbfs, setMinPeakDbfs] = useState(-45);
+  const [denoiseEnabled, setDenoiseEnabled] = useState(true);
 
   useEffect(() => {
     void invoke<string>("app_version")
       .then(setVersion)
       .catch(() => undefined);
-    void invoke<AnalyzeResult>("analyze_synthetic")
-      .then((result) => {
-        setAnalysis(result);
-        const mapped = mapCoreEvents(result.events);
-        setEvents(mapped);
-        setSelectedEventId(mapped[0]?.id ?? 0);
-        setWaveformBins(buildPreviewWaveform(waveformBinCount));
-        setAudioSrc(null);
-        setIsPlaying(false);
-        setPlayheadSec(0);
-        setFileLabel("Rust synthetic");
-        setStatus("样例分析已完成");
-      })
-      .catch(() => {
-        setStatus("使用前端预览数据");
-      });
   }, []);
 
   function detectConfig(): DetectConfig {
@@ -246,8 +231,8 @@ function App() {
     };
   }
 
-  function gainConfig(): GainConfig {
-    if (mode === "full_denoise") {
+  function gainConfig(selectedMode = mode): GainConfig {
+    if (selectedMode === "full_denoise") {
       return {
         enabled: false,
         mode: "off",
@@ -257,7 +242,7 @@ function App() {
     }
     return {
       enabled: true,
-      mode: mode === "highlight" ? "per_event" : "global",
+      mode: selectedMode === "highlight" ? "per_event" : "global",
       target_peak_dbfs: -1,
       max_gain_db: 36,
     };
@@ -273,22 +258,23 @@ function App() {
     };
   }
 
-  function appConfig(): AppConfig {
+  function appConfig(options?: { denoiseEnabled?: boolean; mode?: ProcessMode }): AppConfig {
+    const selectedMode = options?.mode ?? mode;
     return {
-      mode,
+      mode: selectedMode,
       denoise: {
-        enabled: false,
+        enabled: selectedMode !== "highlight" || (options?.denoiseEnabled ?? denoiseEnabled),
         noise_sample_seconds: 1,
         prop_decrease: 0.9,
         stationary: true,
       },
       detect: detectConfig(),
-      gain: gainConfig(),
+      gain: gainConfig(selectedMode),
       export: exportConfig(),
     };
   }
 
-  async function inspectCurrentAudio(path: string) {
+  async function inspectCurrentAudio(path: string, config = appConfig()) {
     setError(null);
     setStatus("正在读取音频信息");
     try {
@@ -299,9 +285,11 @@ function App() {
         invoke<WaveformResult>("waveform_peaks", {
           inputPath: path,
           bins: waveformBinCount,
+          config,
         }),
         invoke<AudioPreviewResult>("prepare_audio_preview", {
           inputPath: path,
+          config,
         }),
       ]);
       setAnalysis(result);
@@ -331,7 +319,7 @@ function App() {
     try {
       const result = await invoke<AnalyzeResult>("analyze_audio", {
         inputPath: path,
-        detect: detectConfig(),
+        config: appConfig(),
       });
       const mapped = mapCoreEvents(result.events);
       setAnalysis(result);
@@ -491,6 +479,7 @@ function App() {
         inputPath,
         start,
         end: stop,
+        config: appConfig(),
       });
       setEvents((current) => {
         const nextId = current.reduce((max, item) => Math.max(max, item.id), 0) + 1;
@@ -527,6 +516,22 @@ function App() {
     }
   }
 
+  async function changeDenoiseEnabled(enabled: boolean) {
+    setDenoiseEnabled(enabled);
+    setError(null);
+    if (inputPath) {
+      await inspectCurrentAudio(inputPath, appConfig({ denoiseEnabled: enabled }));
+    }
+  }
+
+  async function changeMode(nextMode: ProcessMode) {
+    setMode(nextMode);
+    setError(null);
+    if (inputPath) {
+      await inspectCurrentAudio(inputPath, appConfig({ mode: nextMode }));
+    }
+  }
+
   const kept = events.filter((event) => event.keep);
   const keptSeconds = kept.reduce((sum, event) => sum + event.end - event.start, 0);
   const durationSeconds = Math.max(analysis?.duration_seconds ?? 70, 1);
@@ -534,6 +539,7 @@ function App() {
   const dragLeft = dragSpan ? (Math.min(dragSpan.start, dragSpan.end) / durationSeconds) * 100 : 0;
   const dragWidth = dragSpan ? (Math.abs(dragSpan.end - dragSpan.start) / durationSeconds) * 100 : 0;
   const playheadLeft = (Math.max(0, Math.min(playheadSec, durationSeconds)) / durationSeconds) * 100;
+  const effectiveDenoiseEnabled = mode !== "highlight" || denoiseEnabled;
   const exportSummary =
     mode === "highlight"
       ? `合集约 ${keptSeconds.toFixed(1)} 秒 · WAV + CSV`
@@ -555,17 +561,26 @@ function App() {
         <div className="modeGroup" aria-label="处理模式">
           <button
             className={`modeButton ${mode === "full_denoise" ? "active" : ""}`}
-            onClick={() => setMode("full_denoise")}
+            onClick={() => {
+              void changeMode("full_denoise");
+            }}
           >
             整段降噪
           </button>
           <button
             className={`modeButton ${mode === "full_amplify" ? "active" : ""}`}
-            onClick={() => setMode("full_amplify")}
+            onClick={() => {
+              void changeMode("full_amplify");
+            }}
           >
             整段放大
           </button>
-          <button className={`modeButton ${mode === "highlight" ? "active" : ""}`} onClick={() => setMode("highlight")}>
+          <button
+            className={`modeButton ${mode === "highlight" ? "active" : ""}`}
+            onClick={() => {
+              void changeMode("highlight");
+            }}
+          >
             智能切片
           </button>
         </div>
@@ -595,7 +610,7 @@ function App() {
         ) : null}
         <aside className="flowRail" aria-label="流程">
           <Step active icon={<FileAudio size={18} />} label="导入" value="已加载" />
-          <Step active icon={<Settings2 size={18} />} label="预处理" value="已完成" />
+          <Step active icon={<Settings2 size={18} />} label="预处理" value={effectiveDenoiseEnabled ? "滤底噪" : "原始"} />
           <Step active icon={<ScanLine size={18} />} label="检测" value={`${events.length} 段`} />
           <Step icon={<ListChecks size={18} />} label="复核" value={`${kept.length} 保留`} />
           <Step icon={<Download size={18} />} label="导出" value="待确认" />
@@ -769,6 +784,17 @@ function App() {
             <div className="emptyState">暂无事件</div>
           )}
           <div className="settingsBox">
+            <label className="toggleSetting">
+              <span>滤底噪 · {mode === "highlight" ? (denoiseEnabled ? "开" : "关") : "必开"}</span>
+              <input
+                type="checkbox"
+                checked={effectiveDenoiseEnabled}
+                disabled={mode !== "highlight"}
+                onChange={(event) => {
+                  void changeDenoiseEnabled(event.target.checked);
+                }}
+              />
+            </label>
             <label>
               <span>灵敏度 · {sensitivity === "high" ? "高" : sensitivity === "low" ? "低" : "中"}</span>
               <select value={sensitivity} onChange={(event) => setSensitivity(event.target.value as Sensitivity)}>

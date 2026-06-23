@@ -67,7 +67,7 @@ The next-generation implementation uses JSON contracts to compare Python referen
 
 ## WaveformResult
 
-`waveform_peaks(input_path, bins)` returns a fixed-size min/max envelope for UI rendering. Samples remain in normalized mono `f32` range.
+`waveform_peaks(input_path, bins, config)` returns a fixed-size min/max envelope for UI rendering. Samples remain in normalized mono `f32` range.
 
 ```json
 {
@@ -82,7 +82,7 @@ The next-generation implementation uses JSON contracts to compare Python referen
 
 ## AudioPreviewResult
 
-`prepare_audio_preview(input_path)` decodes any supported input format and writes a temporary mono WAV preview for reliable WebView playback.
+`prepare_audio_preview(input_path, config)` decodes any supported input format and writes a temporary mono WAV preview for reliable WebView playback.
 
 ```json
 {
@@ -109,23 +109,29 @@ Current next-generation support:
 
 - `noise-cli analyze-audio --input <audio> --config <json>` reads local audio files.
 - Tauri command `inspect_audio(input_path)` reads local audio metadata for import/preprocess state and returns an `AnalyzeResult` with an empty `events` list.
-- Tauri command `waveform_peaks(input_path, bins)` reads the same local audio and returns a downsampled waveform envelope for display.
-- Tauri command `prepare_audio_preview(input_path)` writes a temporary WAV preview used by the frontend player.
-- Tauri command `analyze_audio(input_path, detect)` runs event detection only after the frontend explicitly triggers detection.
+- Tauri command `waveform_peaks(input_path, bins, config)` reads the same local audio, applies configured preprocessing, and returns a downsampled waveform envelope for display.
+- Tauri command `prepare_audio_preview(input_path, config)` writes a temporary preprocessed WAV preview used by the frontend player.
+- Tauri command `analyze_audio(input_path, config)` runs event detection only after the frontend explicitly triggers detection.
 - Supported input families are currently handled through Symphonia: `m4a/mp4/aac`, `mp3`, `wav`, `flac`, `ogg/oga`.
 - Audio is decoded to mono `f32`; multichannel files are averaged per frame.
 - `noise-cli export-audio --input <audio> --output <wav> --config <json> [--csv <report.csv>]` writes a WAV export and, in highlight mode, an optional CSV report.
-- Tauri command `manual_event(input_path, start, end)` analyzes a user-selected span from the original audio and returns a full `NoiseEvent` with `manual: true`.
+- Tauri command `manual_event(input_path, start, end, config)` analyzes a user-selected span from the preprocessed audio and returns a full `NoiseEvent` with `manual: true`.
 - Tauri command `export_audio(input_path, wav_path, csv_path, config, events)` writes full-mode WAV or highlight-mode WAV + CSV.
 - In `highlight` mode, `events` is the user-reviewed event list from the frontend. Deleted events are absent, `keep: false` events are excluded from the WAV highlight, and manual events are included when `keep: true`.
 - In full modes, `events` is ignored and only WAV is exported.
 - Frontend playback uses Tauri `convertFileSrc` and the app asset protocol to play the generated WAV preview, so playback follows backend decode support instead of WebView codec support.
 
+## Preprocessing
+
+- `denoise.enabled=true` applies Rust-side lightweight noise-floor attenuation before waveform rendering, preview WAV creation, detection, manual event construction, and export.
+- The Rust implementation estimates the quietest window as the noise floor, then attenuates lower-amplitude samples more strongly than high-amplitude events.
+- This is intentionally conservative and dependency-light. It is not a full spectral-gating equivalent of the Python reference app's `noisereduce` path, so parity should be judged with fixture tests and listening checks.
+- `denoise.enabled=false` keeps the decoded mono samples unchanged.
+
 Current limitations:
 
 - Exotic codecs outside Symphonia's enabled decoders may still need the Python reference app or a future ffmpeg fallback.
 - Preview WAV files are written to the OS temp directory and are not currently garbage-collected by the app.
-- Noise reduction is not yet implemented in the Rust backend.
 
 ## ErrorResult
 

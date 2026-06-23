@@ -79,10 +79,12 @@ Current responsibilities:
 
 ### Rust Core
 
-Future responsibilities:
+Current responsibilities:
 
 - Event detection and merge logic.
 - Manual event construction.
+- Lightweight denoise preprocessing.
+- Full-mode and highlight-mode export assembly.
 
 ### Rust IO
 
@@ -101,10 +103,10 @@ Future responsibilities:
 
 ### Rust Processing Pipeline
 
-Future responsibilities:
+Current responsibilities:
 
-- Optional noise reduction.
-- Preprocess/analyze/export orchestration.
+- Optional lightweight noise reduction.
+- Preprocess/analyze/export orchestration for CLI and Tauri commands.
 
 Rust processing modules must be usable without the GUI through `noise-cli`.
 
@@ -176,6 +178,7 @@ Primary screens:
 | Rust audio decode differs from Python/ffmpeg | Keep Python fixtures and golden tests. Add ffmpeg fallback if needed. |
 | Tauri UI scope grows too fast | Build static prototype first, then wire commands. |
 | Detection output changes unexpectedly | Compare event count, starts/ends, and exported CSV against fixtures. |
+| Rust denoise differs from Python `noisereduce` | Keep the Rust path conservative, document the algorithm boundary, and validate with fixtures plus listening checks. |
 | WebView cannot directly play a codec that Rust can decode | Generate a normalized preview WAV and play that preview instead. |
 | Windows packaging edge cases | Keep current PyInstaller app until Tauri build is verified. |
 | User recordings leak into Git | Keep `.gitignore` strict and use sanitized fixtures only. |

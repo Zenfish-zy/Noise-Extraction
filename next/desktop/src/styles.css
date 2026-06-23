@@ -409,6 +409,22 @@ button:disabled:hover {
   color: #6e685b;
 }
 
+.settingsBox .toggleSetting {
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid #e2dbcb;
+  border-radius: 8px;
+  background: #f8f6f0;
+  padding: 10px 12px;
+}
+
+input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: #4f7e6e;
+}
+
 input[type="range"] {
   accent-color: #4f7e6e;
 }

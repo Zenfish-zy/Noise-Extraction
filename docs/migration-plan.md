@@ -87,6 +87,7 @@ Goals:
 - Implement `noise-io` decoding beyond WAV or a documented fallback path.
 - Implement full WAV export and highlight export.
 - Implement CSV report export.
+- Implement Rust-side lightweight denoise preprocessing.
 
 Exit criteria:
 
@@ -143,6 +144,7 @@ Exit criteria:
 - [x] Add preview-WAV local playback and waveform click-to-seek in the Next UI.
 - [x] Add parity fixtures against Python reference output.
 - [x] Add Tauri package smoke test.
+- [x] Add Rust-side lightweight denoise preprocessing and frontend toggle.
 
 ## Latest Smoke Commands
 

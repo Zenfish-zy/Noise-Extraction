@@ -23,7 +23,8 @@ fn run() -> Result<(), String> {
             let config_path = parse_config_arg(args.collect())?;
             let config = read_config(&config_path)?;
             let (samples, samplerate, duration_seconds) = synthetic_close_peaks();
-            let events = noise_core::detect_events(&samples, samplerate, &config.detect);
+            let work = noise_core::reduce_noise(&samples, samplerate, &config.denoise);
+            let events = noise_core::detect_events(&work, samplerate, &config.detect);
             let result = AnalyzeResult {
                 samplerate,
                 duration_seconds,
@@ -38,8 +39,8 @@ fn run() -> Result<(), String> {
             let config = read_config(&parsed.config_path)?;
             let audio = noise_io::load_audio_mono(&parsed.input_path)
                 .map_err(|err| format!("failed to load input audio: {err}"))?;
-            let events =
-                noise_core::detect_events(&audio.samples, audio.samplerate, &config.detect);
+            let work = noise_core::reduce_noise(&audio.samples, audio.samplerate, &config.denoise);
+            let events = noise_core::detect_events(&work, audio.samplerate, &config.detect);
             let result = AnalyzeResult {
                 samplerate: audio.samplerate,
                 duration_seconds: audio.duration_seconds,
@@ -180,23 +181,24 @@ fn export_wav(
 ) -> Result<ExportResult, String> {
     let audio = noise_io::load_audio_mono(input_path)
         .map_err(|err| format!("failed to load input audio: {err}"))?;
+    let samples = noise_core::reduce_noise(&audio.samples, audio.samplerate, &config.denoise);
     let events = if config.mode == ProcessMode::Highlight {
-        noise_core::detect_events(&audio.samples, audio.samplerate, &config.detect)
+        noise_core::detect_events(&samples, audio.samplerate, &config.detect)
     } else {
         Vec::new()
     };
     let built = match config.mode {
         ProcessMode::FullDenoise => {
-            noise_core::build_full_export(&audio.samples, audio.samplerate, &config.export, None)
+            noise_core::build_full_export(&samples, audio.samplerate, &config.export, None)
         }
         ProcessMode::FullAmplify => noise_core::build_full_export(
-            &audio.samples,
+            &samples,
             audio.samplerate,
             &config.export,
             Some(&config.gain),
         ),
         ProcessMode::Highlight => noise_core::build_highlight_export(
-            &audio.samples,
+            &samples,
             audio.samplerate,
             &events,
             &config.export,
@@ -258,7 +260,8 @@ mod tests {
         .unwrap();
 
         let (samples, samplerate, duration_seconds) = synthetic_close_peaks();
-        let events = noise_core::detect_events(&samples, samplerate, &config.detect);
+        let work = noise_core::reduce_noise(&samples, samplerate, &config.denoise);
+        let events = noise_core::detect_events(&work, samplerate, &config.detect);
 
         assert_eq!(samplerate, expected["samplerate"].as_u64().unwrap() as u32);
         assert!((duration_seconds - expected["duration_seconds"].as_f64().unwrap()).abs() < 1e-9);

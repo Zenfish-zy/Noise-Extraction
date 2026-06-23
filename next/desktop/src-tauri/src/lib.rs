@@ -42,20 +42,29 @@ fn inspect_audio(input_path: String) -> Result<AnalyzeResult, String> {
 }
 
 #[tauri::command]
-fn waveform_peaks(input_path: String, bins: usize) -> Result<WaveformResult, String> {
+fn waveform_peaks(
+    input_path: String,
+    bins: usize,
+    config: AppConfig,
+) -> Result<WaveformResult, String> {
     let audio = noise_io::load_audio_mono(&input_path).map_err(|err| err.to_string())?;
+    let samples = noise_core::reduce_noise(&audio.samples, audio.samplerate, &config.denoise);
     Ok(WaveformResult {
         samplerate: audio.samplerate,
         duration_seconds: audio.duration_seconds,
-        bins: build_waveform_bins(&audio.samples, bins),
+        bins: build_waveform_bins(&samples, bins),
     })
 }
 
 #[tauri::command]
-fn prepare_audio_preview(input_path: String) -> Result<AudioPreviewResult, String> {
+fn prepare_audio_preview(
+    input_path: String,
+    config: AppConfig,
+) -> Result<AudioPreviewResult, String> {
     let audio = noise_io::load_audio_mono(&input_path).map_err(|err| err.to_string())?;
+    let samples = noise_core::reduce_noise(&audio.samples, audio.samplerate, &config.denoise);
     let wav_path = preview_wav_path();
-    noise_io::save_wav_mono(&wav_path, &audio.samples, audio.samplerate)
+    noise_io::save_wav_mono(&wav_path, &samples, audio.samplerate)
         .map_err(|err| err.to_string())?;
     Ok(AudioPreviewResult {
         wav_path: wav_path.display().to_string(),
@@ -65,9 +74,10 @@ fn prepare_audio_preview(input_path: String) -> Result<AudioPreviewResult, Strin
 }
 
 #[tauri::command]
-fn analyze_audio(input_path: String, detect: DetectConfig) -> Result<AnalyzeResult, String> {
+fn analyze_audio(input_path: String, config: AppConfig) -> Result<AnalyzeResult, String> {
     let audio = noise_io::load_audio_mono(&input_path).map_err(|err| err.to_string())?;
-    let events = noise_core::detect_events(&audio.samples, audio.samplerate, &detect);
+    let samples = noise_core::reduce_noise(&audio.samples, audio.samplerate, &config.denoise);
+    let events = noise_core::detect_events(&samples, audio.samplerate, &config.detect);
     Ok(AnalyzeResult {
         samplerate: audio.samplerate,
         duration_seconds: audio.duration_seconds,
@@ -76,9 +86,15 @@ fn analyze_audio(input_path: String, detect: DetectConfig) -> Result<AnalyzeResu
 }
 
 #[tauri::command]
-fn manual_event(input_path: String, start: f64, end: f64) -> Result<NoiseEvent, String> {
+fn manual_event(
+    input_path: String,
+    start: f64,
+    end: f64,
+    config: AppConfig,
+) -> Result<NoiseEvent, String> {
     let audio = noise_io::load_audio_mono(&input_path).map_err(|err| err.to_string())?;
-    noise_core::make_manual_event(&audio.samples, audio.samplerate, start, end)
+    let samples = noise_core::reduce_noise(&audio.samples, audio.samplerate, &config.denoise);
+    noise_core::make_manual_event(&samples, audio.samplerate, start, end)
         .ok_or_else(|| "框选区间为空，无法新增事件。".to_string())
 }
 
@@ -91,25 +107,26 @@ fn export_audio(
     events: Option<Vec<NoiseEvent>>,
 ) -> Result<ExportResult, String> {
     let audio = noise_io::load_audio_mono(&input_path).map_err(|err| err.to_string())?;
+    let samples = noise_core::reduce_noise(&audio.samples, audio.samplerate, &config.denoise);
     let events = if config.mode == ProcessMode::Highlight {
         events.unwrap_or_else(|| {
-            noise_core::detect_events(&audio.samples, audio.samplerate, &config.detect)
+            noise_core::detect_events(&samples, audio.samplerate, &config.detect)
         })
     } else {
         Vec::new()
     };
     let built = match config.mode {
         ProcessMode::FullDenoise => {
-            noise_core::build_full_export(&audio.samples, audio.samplerate, &config.export, None)
+            noise_core::build_full_export(&samples, audio.samplerate, &config.export, None)
         }
         ProcessMode::FullAmplify => noise_core::build_full_export(
-            &audio.samples,
+            &samples,
             audio.samplerate,
             &config.export,
             Some(&config.gain),
         ),
         ProcessMode::Highlight => noise_core::build_highlight_export(
-            &audio.samples,
+            &samples,
             audio.samplerate,
             &events,
             &config.export,
@@ -229,13 +246,14 @@ mod tests {
 
         noise_io::save_wav_mono(&input_path, &[0.5; 16_000], 8_000).unwrap();
         let inspected = inspect_audio(path_string(&input_path)).unwrap();
-        let waveform = waveform_peaks(path_string(&input_path), 4).unwrap();
-        let preview = prepare_audio_preview(path_string(&input_path)).unwrap();
+        let config = highlight_config();
+        let waveform = waveform_peaks(path_string(&input_path), 4, config.clone()).unwrap();
+        let preview = prepare_audio_preview(path_string(&input_path), config.clone()).unwrap();
         let result = export_audio(
             path_string(&input_path),
             path_string(&wav_path),
             Some(path_string(&csv_path)),
-            highlight_config(),
+            config,
             Some(vec![
                 test_event(0.0, 0.25, true, false),
                 test_event(0.5, 0.75, false, true),

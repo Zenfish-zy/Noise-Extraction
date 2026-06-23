@@ -1,6 +1,6 @@
 use std::fmt;
 
-use noise_types::{DetectConfig, ExportConfig, GainConfig, GainMode, NoiseEvent};
+use noise_types::{DenoiseConfig, DetectConfig, ExportConfig, GainConfig, GainMode, NoiseEvent};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct BuiltAudio {
@@ -63,6 +63,25 @@ pub fn make_manual_event(
         (end, start)
     };
     make_event(samples, sample_rate, lo, hi, true)
+}
+
+pub fn reduce_noise(samples: &[f32], sample_rate: u32, cfg: &DenoiseConfig) -> Vec<f32> {
+    if !cfg.enabled || samples.is_empty() || sample_rate == 0 {
+        return samples.to_vec();
+    }
+
+    let noise = quietest_window(samples, sample_rate, cfg.noise_sample_seconds);
+    let floor = rms(noise).max(1e-6) as f32;
+    let strength = cfg.prop_decrease.clamp(0.0, 1.0) as f32;
+    samples
+        .iter()
+        .map(|sample| {
+            let abs = sample.abs();
+            let noise_ratio = floor / (abs + floor);
+            let attenuation = 1.0 - strength * noise_ratio;
+            (sample * attenuation).clamp(-1.0, 1.0)
+        })
+        .collect()
 }
 
 pub fn build_full_export(
@@ -201,6 +220,48 @@ fn frame_rms_db(samples: &[f32], frame: usize, hop: usize) -> Vec<f64> {
         out.push(20.0 * (rms + 1e-10).log10());
     }
     out
+}
+
+fn quietest_window(samples: &[f32], sample_rate: u32, win_sec: f64) -> &[f32] {
+    let win = ((win_sec.max(0.001) * sample_rate as f64).round() as usize)
+        .max(1)
+        .min(samples.len());
+    if samples.len() <= win {
+        return samples;
+    }
+    let step = (win / 4).max(1);
+    let mut best_start = 0usize;
+    let mut best_energy = f64::INFINITY;
+    for start in (0..=samples.len() - win).step_by(step) {
+        let energy = samples[start..start + win]
+            .iter()
+            .map(|sample| {
+                let value = *sample as f64;
+                value * value
+            })
+            .sum::<f64>()
+            / win as f64;
+        if energy < best_energy {
+            best_energy = energy;
+            best_start = start;
+        }
+    }
+    &samples[best_start..best_start + win]
+}
+
+fn rms(samples: &[f32]) -> f64 {
+    if samples.is_empty() {
+        return 0.0;
+    }
+    (samples
+        .iter()
+        .map(|sample| {
+            let value = *sample as f64;
+            value * value
+        })
+        .sum::<f64>()
+        / samples.len() as f64)
+        .sqrt()
 }
 
 fn percentile(values: &[f64], percentile: f64) -> f64 {
@@ -479,5 +540,36 @@ mod tests {
             .map(|sample| sample.abs())
             .fold(0.0, f32::max);
         assert!((peak - 0.501).abs() < 0.002);
+    }
+
+    #[test]
+    fn denoise_attenuates_floor_more_than_events() {
+        let sr = 1000;
+        let mut samples = vec![0.02_f32; sr * 2];
+        samples[800..900].fill(0.5);
+        let cfg = DenoiseConfig {
+            enabled: true,
+            noise_sample_seconds: 0.25,
+            prop_decrease: 0.9,
+            stationary: true,
+        };
+
+        let reduced = reduce_noise(&samples, sr as u32, &cfg);
+
+        assert!(reduced[10].abs() < samples[10].abs() * 0.65);
+        assert!(reduced[850].abs() > samples[850].abs() * 0.9);
+    }
+
+    #[test]
+    fn denoise_disabled_returns_original_samples() {
+        let samples = [0.1_f32, -0.2, 0.3];
+        let cfg = DenoiseConfig {
+            enabled: false,
+            noise_sample_seconds: 1.0,
+            prop_decrease: 0.9,
+            stationary: true,
+        };
+
+        assert_eq!(reduce_noise(&samples, 8000, &cfg), samples);
     }
 }
