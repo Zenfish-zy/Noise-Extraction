@@ -204,7 +204,7 @@ function App() {
   const [leftCollapsed, setLeftCollapsed] = useState(false);
   const [rightCollapsed, setRightCollapsed] = useState(false);
   const [modeMenuOpen, setModeMenuOpen] = useState(false);
-  const [settingsTab, setSettingsTab] = useState<"ai" | "export" | "about">("ai");
+  const [settingsTab, setSettingsTab] = useState<"detect" | "ai" | "export" | "about">("detect");
 
   // Save AI settings to localStorage
   useEffect(() => {
@@ -740,6 +740,42 @@ function App() {
     }
   }
 
+  async function aiProcessAudio() {
+    if (!inputPath) {
+      setError("请先导入录音文件");
+      return;
+    }
+    if (!aiEnabled) {
+      setError("请先开启 AI 功能");
+      return;
+    }
+    if (!aiKey) {
+      setError("请先配置 API Key");
+      return;
+    }
+
+    setError(null);
+    setStatus("正在使用 AI 处理音频");
+    setImportProgress({ stage: "AI 正在增强音频", percent: 50 });
+    try {
+      // TODO: 调用后端 AI 音频处理接口
+      // const result = await invoke("ai_process_audio", { inputPath, config: appConfig() });
+      // await inspectCurrentAudio(inputPath);
+
+      setImportProgress({ stage: "AI 处理完成", percent: 100 });
+      setTimeout(() => setImportProgress(null), 800);
+      setStatus("AI 处理完成");
+
+      // 临时提示
+      setError("AI 音频处理功能正在开发中");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      setError(message);
+      setImportProgress(null);
+      setStatus("AI 处理失败");
+    }
+  }
+
   const hasInput = inputPath !== null;
   const kept = events.filter((event) => event.keep);
   const keptSeconds = kept.reduce((sum, event) => sum + event.end - event.start, 0);
@@ -775,35 +811,51 @@ function App() {
           </button>
 
           <div className="processingToggles">
-            <label className="toggleSetting">
-              <span>滤底噪</span>
-              <label className="toggleSwitch">
-                <input
-                  type="checkbox"
-                  checked={denoiseEnabled}
-                  onChange={(event) => {
-                    void changeDenoiseEnabled(event.target.checked);
-                  }}
-                  disabled={!inputPath}
-                />
-                <span className="toggleSlider"></span>
-              </label>
-            </label>
+            {!aiEnabled && (
+              <>
+                <label className="toggleSetting">
+                  <span>滤底噪</span>
+                  <label className="toggleSwitch">
+                    <input
+                      type="checkbox"
+                      checked={denoiseEnabled}
+                      onChange={(event) => {
+                        void changeDenoiseEnabled(event.target.checked);
+                      }}
+                      disabled={!inputPath}
+                    />
+                    <span className="toggleSlider"></span>
+                  </label>
+                </label>
 
-            <label className="toggleSetting">
-              <span>放大</span>
-              <label className="toggleSwitch">
-                <input
-                  type="checkbox"
-                  checked={amplifyEnabled}
-                  onChange={(event) => {
-                    void changeAmplifyEnabled(event.target.checked);
-                  }}
-                  disabled={!inputPath}
-                />
-                <span className="toggleSlider"></span>
-              </label>
-            </label>
+                <label className="toggleSetting">
+                  <span>放大</span>
+                  <label className="toggleSwitch">
+                    <input
+                      type="checkbox"
+                      checked={amplifyEnabled}
+                      onChange={(event) => {
+                        void changeAmplifyEnabled(event.target.checked);
+                      }}
+                      disabled={!inputPath}
+                    />
+                    <span className="toggleSlider"></span>
+                  </label>
+                </label>
+              </>
+            )}
+
+            {aiEnabled && (
+              <button
+                className="primaryButton"
+                onClick={() => void aiProcessAudio()}
+                disabled={!inputPath}
+                title="使用 AI 智能增强音频（替代滤噪+放大）"
+              >
+                <Sparkles size={18} />
+                AI 处理
+              </button>
+            )}
 
             <label className="toggleSetting">
               <span>切片</span>
@@ -821,17 +873,8 @@ function App() {
             </label>
           </div>
 
-          <button
-            className="ghostButton"
-            onClick={() => void redetectEvents()}
-            disabled={!inputPath}
-          >
-            <ScanLine size={18} />
-            检测事件
-          </button>
-
           <label className="toggleSetting">
-            <span>AI 增强</span>
+            <span>启用 AI 功能</span>
             <label className="toggleSwitch">
               <input
                 type="checkbox"
@@ -841,6 +884,16 @@ function App() {
               <span className="toggleSlider"></span>
             </label>
           </label>
+
+          <button
+            className="ghostButton"
+            onClick={() => void redetectEvents()}
+            disabled={!inputPath}
+            title={aiEnabled ? "使用 AI 识别噪音事件" : "使用传统算法检测事件"}
+          >
+            <ScanLine size={18} />
+            检测事件
+          </button>
 
           <button
             className="ghostButton"
@@ -865,10 +918,16 @@ function App() {
 
             <div className="modalTabs">
               <button
+                className={`modalTab ${settingsTab === "detect" ? "active" : ""}`}
+                onClick={() => setSettingsTab("detect")}
+              >
+                检测参数
+              </button>
+              <button
                 className={`modalTab ${settingsTab === "ai" ? "active" : ""}`}
                 onClick={() => setSettingsTab("ai")}
               >
-                AI
+                AI 配置
               </button>
               <button
                 className={`modalTab ${settingsTab === "export" ? "active" : ""}`}
@@ -885,11 +944,77 @@ function App() {
             </div>
 
             <div className="modalBody">
+              {settingsTab === "detect" && (
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-lg)" }}>
+                  <section className="settingsGroup">
+                    <h3>检测参数</h3>
+                    <label>
+                      <span>灵敏度 · {sensitivity === "high" ? "高" : sensitivity === "low" ? "低" : "中"}</span>
+                      <select
+                        value={sensitivity}
+                        onChange={(event) => {
+                          setSensitivity(event.target.value as Sensitivity);
+                        }}
+                      >
+                        <option value="low">低</option>
+                        <option value="medium">中</option>
+                        <option value="high">高</option>
+                      </select>
+                    </label>
+                    <label>
+                      <span>合并间隔 · {mergeGap.toFixed(1)}s</span>
+                      <input
+                        type="range"
+                        min="0"
+                        max="5"
+                        step="0.1"
+                        value={mergeGap}
+                        onChange={(event) => setMergeGap(Number(event.target.value))}
+                      />
+                    </label>
+                    <label>
+                      <span>起止缓冲 · {padSeconds.toFixed(1)}s</span>
+                      <input
+                        type="range"
+                        min="0"
+                        max="3"
+                        step="0.1"
+                        value={padSeconds}
+                        onChange={(event) => setPadSeconds(Number(event.target.value))}
+                      />
+                    </label>
+                    <label>
+                      <span>最小响度 · {minPeakDbfs} dBFS</span>
+                      <input
+                        type="range"
+                        min="-60"
+                        max="-20"
+                        step="1"
+                        value={minPeakDbfs}
+                        onChange={(event) => setMinPeakDbfs(Number(event.target.value))}
+                      />
+                    </label>
+                  </section>
+
+                  <section className="settingsGroup">
+                    <h3>切片参数</h3>
+                    <p style={{ color: "var(--color-text-secondary)", fontSize: "14px" }}>
+                      切片相关参数将在后续版本中添加
+                    </p>
+                  </section>
+                </div>
+              )}
+
               {settingsTab === "ai" && (
                 <section className="settingsGroup">
-                  <h3>AI 增强识别</h3>
+                  <h3>AI 配置</h3>
+                  <p style={{ color: "var(--color-text-secondary)", fontSize: "14px", marginBottom: "16px" }}>
+                    启用 AI 功能后：
+                    <br />• AI 处理：智能增强音频（替代滤噪+放大）
+                    <br />• 检测事件：使用 AI 识别噪音（替代传统算法）
+                  </p>
                   <label className="toggleSetting">
-                    <span>AI 识别 · {aiEnabled ? "开" : "关"}</span>
+                    <span>启用 AI 功能 · {aiEnabled ? "开" : "关"}</span>
                     <label className="toggleSwitch">
                       <input
                         type="checkbox"
