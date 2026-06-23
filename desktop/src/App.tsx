@@ -1,4 +1,5 @@
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { useEffect, useRef, useState, type PointerEvent, type ReactNode } from "react";
 import {
@@ -165,6 +166,15 @@ function App() {
       .catch(() => undefined);
   }, []);
 
+  useEffect(() => {
+    const unlisten = listen<{ stage: string; percent: number }>("import_progress", (event) => {
+      setStatus(event.payload.stage);
+    });
+    return () => {
+      void unlisten.then((fn) => fn());
+    };
+  }, []);
+
   function detectConfig(): DetectConfig {
     return {
       frame_ms: 30,
@@ -222,22 +232,16 @@ function App() {
 
   async function inspectCurrentAudio(path: string, config = appConfig()) {
     setError(null);
-    setStatus("正在读取音频信息");
+    setStatus("正在准备导入");
     try {
-      const [result, waveform, preview] = await Promise.all([
-        invoke<AnalyzeResult>("inspect_audio", {
-          inputPath: path,
-        }),
-        invoke<WaveformResult>("waveform_peaks", {
+      const [result, waveform, preview] = await invoke<[AnalyzeResult, WaveformResult, AudioPreviewResult]>(
+        "inspect_audio_with_progress",
+        {
           inputPath: path,
           bins: waveformBinCount,
           config,
-        }),
-        invoke<AudioPreviewResult>("prepare_audio_preview", {
-          inputPath: path,
-          config,
-        }),
-      ]);
+        }
+      );
       setAnalysis(result);
       setWaveformBins(waveform.bins);
       setEvents([]);
@@ -521,6 +525,9 @@ function App() {
 
   async function changeSliceEnabled(enabled: boolean) {
     setSliceEnabled(enabled);
+    if (inputPath) {
+      await refreshPreview(inputPath);
+    }
   }
 
   async function redetectEvents() {

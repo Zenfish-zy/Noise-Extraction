@@ -4,6 +4,7 @@ use noise_types::{
 };
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
+use tauri::Emitter;
 
 #[tauri::command]
 fn app_version() -> &'static str {
@@ -39,6 +40,53 @@ fn inspect_audio(input_path: String) -> Result<AnalyzeResult, String> {
         duration_seconds: audio.duration_seconds,
         events: Vec::new(),
     })
+}
+
+#[tauri::command]
+async fn inspect_audio_with_progress(
+    input_path: String,
+    bins: usize,
+    config: AppConfig,
+    window: tauri::Window,
+) -> Result<(AnalyzeResult, WaveformResult, AudioPreviewResult), String> {
+    let input_path_clone = input_path.clone();
+    let config_clone = config.clone();
+
+    // Step 1: Load audio metadata
+    let _ = window.emit("import_progress", serde_json::json!({"stage": "正在读取音频信息", "percent": 10}));
+    let audio = noise_io::load_audio_mono(&input_path).map_err(|err| err.to_string())?;
+    let result = AnalyzeResult {
+        samplerate: audio.samplerate,
+        duration_seconds: audio.duration_seconds,
+        events: Vec::new(),
+    };
+
+    // Step 2: Generate waveform
+    let _ = window.emit("import_progress", serde_json::json!({"stage": "正在生成波形", "percent": 40}));
+    let audio = noise_io::load_audio_mono(&input_path_clone).map_err(|err| err.to_string())?;
+    let samples = noise_core::reduce_noise(&audio.samples, audio.samplerate, &config_clone.denoise);
+    let waveform = WaveformResult {
+        samplerate: audio.samplerate,
+        duration_seconds: audio.duration_seconds,
+        bins: build_waveform_bins(&samples, bins),
+    };
+
+    // Step 3: Prepare preview
+    let _ = window.emit("import_progress", serde_json::json!({"stage": "正在准备预览", "percent": 70}));
+    let audio = noise_io::load_audio_mono(&input_path_clone).map_err(|err| err.to_string())?;
+    let samples = noise_core::reduce_noise(&audio.samples, audio.samplerate, &config.denoise);
+    let wav_path = preview_wav_path();
+    noise_io::save_wav_mono(&wav_path, &samples, audio.samplerate)
+        .map_err(|err| err.to_string())?;
+    let preview = AudioPreviewResult {
+        wav_path: wav_path.display().to_string(),
+        samplerate: audio.samplerate,
+        duration_seconds: audio.duration_seconds,
+    };
+
+    let _ = window.emit("import_progress", serde_json::json!({"stage": "完成", "percent": 100}));
+
+    Ok((result, waveform, preview))
 }
 
 #[tauri::command]
@@ -219,6 +267,7 @@ pub fn run() {
             app_version,
             analyze_synthetic,
             inspect_audio,
+            inspect_audio_with_progress,
             waveform_peaks,
             prepare_audio_preview,
             analyze_audio,
