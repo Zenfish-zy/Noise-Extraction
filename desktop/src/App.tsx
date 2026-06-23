@@ -12,6 +12,7 @@ import {
   ScanLine,
   Scissors,
   Settings2,
+  Sparkles,
   Trash2,
   Volume2,
 } from "lucide-react";
@@ -57,6 +58,13 @@ type AudioPreviewResult = {
   duration_seconds: number;
 };
 
+type AIConfig = {
+  enabled: boolean;
+  api_endpoint: string;
+  api_key: string;
+  model: string;
+};
+
 type AppConfig = {
   mode: ProcessMode;
   denoise: {
@@ -68,6 +76,7 @@ type AppConfig = {
   detect: DetectConfig;
   gain: GainConfig;
   export: ExportConfig;
+  ai: AIConfig;
 };
 
 type DetectConfig = {
@@ -161,6 +170,10 @@ function App() {
   const [sliceEnabled, setSliceEnabled] = useState(false);
   const [importProgress, setImportProgress] = useState<{ stage: string; percent: number } | null>(null);
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
+  const [aiEnabled, setAiEnabled] = useState(false);
+  const [aiEndpoint, setAiEndpoint] = useState("https://api.openai.com/v1/chat/completions");
+  const [aiKey, setAiKey] = useState("");
+  const [aiModel, setAiModel] = useState("gpt-4o-mini");
 
   useEffect(() => {
     void invoke<string>("app_version")
@@ -245,6 +258,12 @@ function App() {
       detect: detectConfig(),
       gain: gainConfig(),
       export: exportConfig(),
+      ai: {
+        enabled: aiEnabled,
+        api_endpoint: aiEndpoint,
+        api_key: aiKey,
+        model: aiModel,
+      },
     };
   }
 
@@ -591,6 +610,42 @@ function App() {
     }
   }
 
+  async function aiEnhanceEvents() {
+    if (events.length === 0) {
+      setError("请先检测事件再使用 AI 增强");
+      return;
+    }
+    if (!aiEnabled) {
+      setError("请先开启 AI 识别功能");
+      return;
+    }
+    if (!aiKey) {
+      setError("请先配置 API Key");
+      return;
+    }
+
+    setError(null);
+    setStatus("正在使用 AI 增强识别");
+    setImportProgress({ stage: "AI 正在分析事件类型", percent: 50 });
+    try {
+      const coreEvents = events.map(toCoreEvent);
+      const enhanced = await invoke<CoreNoiseEvent[]>("ai_enhance_events", {
+        events: coreEvents,
+        config: appConfig(),
+      });
+      const mapped = mapCoreEvents(enhanced);
+      setEvents(mapped);
+      setImportProgress({ stage: "AI 增强完成", percent: 100 });
+      setTimeout(() => setImportProgress(null), 800);
+      setStatus("AI 增强完成");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      setError(message);
+      setImportProgress(null);
+      setStatus("AI 增强失败");
+    }
+  }
+
   const hasInput = inputPath !== null;
   const kept = events.filter((event) => event.keep);
   const keptSeconds = kept.reduce((sum, event) => sum + event.end - event.start, 0);
@@ -667,6 +722,16 @@ function App() {
               >
                 <ScanLine size={17} />
                 检测事件
+              </button>
+              <button
+                onClick={() => {
+                  void aiEnhanceEvents();
+                }}
+                disabled={!inputPath || events.length === 0 || !aiEnabled}
+                title={!aiEnabled ? "请先开启 AI 识别" : "使用 AI 重新分类事件类型"}
+              >
+                <Sparkles size={17} />
+                AI 增强
               </button>
               <button
                 className={selectingSpan ? "activeTool" : ""}
@@ -888,6 +953,51 @@ function App() {
                 onTouchEnd={() => void redetectEvents()}
               />
             </label>
+          </div>
+
+          <div className="settingsSection">
+            <div className="sideHeader">
+              <h3>AI 增强识别</h3>
+            </div>
+            <label className="toggleSetting">
+              <span>AI 识别 · {aiEnabled ? "开" : "关"}</span>
+              <input
+                type="checkbox"
+                checked={aiEnabled}
+                onChange={(event) => setAiEnabled(event.target.checked)}
+              />
+            </label>
+            {aiEnabled && (
+              <>
+                <label>
+                  <span>API 端点</span>
+                  <input
+                    type="text"
+                    value={aiEndpoint}
+                    onChange={(event) => setAiEndpoint(event.target.value)}
+                    placeholder="https://api.openai.com/v1/chat/completions"
+                  />
+                </label>
+                <label>
+                  <span>API Key</span>
+                  <input
+                    type="password"
+                    value={aiKey}
+                    onChange={(event) => setAiKey(event.target.value)}
+                    placeholder="sk-..."
+                  />
+                </label>
+                <label>
+                  <span>模型</span>
+                  <input
+                    type="text"
+                    value={aiModel}
+                    onChange={(event) => setAiModel(event.target.value)}
+                    placeholder="gpt-4o-mini"
+                  />
+                </label>
+              </>
+            )}
           </div>
 
           <div className="eventSection">

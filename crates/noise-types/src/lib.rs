@@ -7,6 +7,8 @@ pub struct AppConfig {
     pub detect: DetectConfig,
     pub gain: GainConfig,
     pub export: ExportConfig,
+    #[serde(default)]
+    pub ai: AIConfig,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -75,6 +77,25 @@ pub struct ExportConfig {
     pub beep_hz: f64,
     pub beep_seconds: f64,
     pub out_samplerate: Option<u32>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct AIConfig {
+    pub enabled: bool,
+    pub api_endpoint: String,
+    pub api_key: String,
+    pub model: String,
+}
+
+impl Default for AIConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            api_endpoint: "https://api.openai.com/v1/chat/completions".to_string(),
+            api_key: String::new(),
+            model: "gpt-4o-mini".to_string(),
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]

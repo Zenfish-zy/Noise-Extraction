@@ -563,6 +563,31 @@ select {
   padding: 6px 9px;
 }
 
+input[type="text"],
+input[type="password"] {
+  width: 100%;
+  min-height: 34px;
+  border: 1px solid #d7cfbe;
+  border-radius: 8px;
+  background: #fbfaf6;
+  color: #4a463d;
+  padding: 6px 9px;
+  font-size: 13px;
+  font-family: inherit;
+  transition: border-color 0.2s;
+}
+
+input[type="text"]:focus,
+input[type="password"]:focus {
+  outline: none;
+  border-color: #3c5a78;
+}
+
+input[type="text"]::placeholder,
+input[type="password"]::placeholder {
+  color: #b7ac98;
+}
+
 .exportDropdown {
   position: relative;
 }

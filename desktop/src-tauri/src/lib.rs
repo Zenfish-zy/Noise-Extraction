@@ -204,6 +204,82 @@ fn export_audio(
     })
 }
 
+#[tauri::command]
+async fn ai_enhance_events(
+    events: Vec<NoiseEvent>,
+    config: AppConfig,
+) -> Result<Vec<NoiseEvent>, String> {
+    if !config.ai.enabled || config.ai.api_key.is_empty() {
+        return Ok(events);
+    }
+
+    let client = reqwest::Client::new();
+    let mut enhanced = Vec::new();
+
+    for event in events {
+        let prompt = format!(
+            "You are a noise classification expert. Based on the following audio features, classify the noise type.\n\n\
+            Duration: {:.2}s\n\
+            Peak level: {:.1} dBFS\n\
+            RMS level: {:.1} dBFS\n\
+            Low frequency ratio: {:.2}\n\
+            High frequency ratio: {:.2}\n\
+            Current type: {:?}\n\n\
+            Reply with ONLY ONE of these types:\n\
+            - Drag: dragging or friction sounds\n\
+            - Thud: sudden impacts or knocks\n\
+            - Rumble: low-frequency continuous sounds\n\
+            - Other: unclassified sounds\n\n\
+            Reply with just the type name, nothing else.",
+            event.end - event.start,
+            event.peak_dbfs,
+            event.rms_dbfs,
+            event.low_ratio,
+            event.high_ratio,
+            event.kind
+        );
+
+        let request_body = serde_json::json!({
+            "model": config.ai.model,
+            "messages": [
+                {"role": "user", "content": prompt}
+            ],
+            "temperature": 0.3,
+            "max_tokens": 20
+        });
+
+        match client
+            .post(&config.ai.api_endpoint)
+            .header("Authorization", format!("Bearer {}", config.ai.api_key))
+            .header("Content-Type", "application/json")
+            .json(&request_body)
+            .send()
+            .await
+        {
+            Ok(response) => {
+                if let Ok(json) = response.json::<serde_json::Value>().await {
+                    if let Some(content) = json["choices"][0]["message"]["content"].as_str() {
+                        let ai_kind = match content.trim().to_lowercase().as_str() {
+                            "drag" => noise_types::EventKind::Drag,
+                            "impact" | "thud" => noise_types::EventKind::Thud,
+                            "rumble" => noise_types::EventKind::Rumble,
+                            _ => event.kind,
+                        };
+                        enhanced.push(NoiseEvent { kind: ai_kind, ..event });
+                        continue;
+                    }
+                }
+                enhanced.push(event);
+            }
+            Err(_) => {
+                enhanced.push(event);
+            }
+        }
+    }
+
+    Ok(enhanced)
+}
+
 fn synthetic_demo_signal() -> (Vec<f32>, u32, f64) {
     let samplerate = 8000_u32;
     let duration_seconds = 8.0_f64;
@@ -272,7 +348,8 @@ pub fn run() {
             prepare_audio_preview,
             analyze_audio,
             manual_event,
-            export_audio
+            export_audio,
+            ai_enhance_events
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
