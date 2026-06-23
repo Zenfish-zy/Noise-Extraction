@@ -10,6 +10,22 @@
     "frontendDist": "../dist"
   },
   "app": {
+    "security": {
+      "csp": {
+        "default-src": "'self' ipc: http://ipc.localhost",
+        "connect-src": "ipc: http://ipc.localhost http://localhost:5173 ws://localhost:5173",
+        "img-src": "'self' asset: http://asset.localhost data:",
+        "media-src": "'self' asset: http://asset.localhost",
+        "style-src": "'self' 'unsafe-inline'"
+      },
+      "assetProtocol": {
+        "enable": true,
+        "scope": {
+          "requireLiteralLeadingDot": false,
+          "allow": ["**/*"]
+        }
+      }
+    },
     "windows": [
       {
         "title": "楼上噪音取证助手 Next",

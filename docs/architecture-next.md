@@ -59,6 +59,7 @@ Current responsibilities:
 - Workflow navigation.
 - Calm visual layout.
 - Waveform/timeline rendering from backend-provided min/max envelopes.
+- Basic local playback and click-to-seek against imported recordings.
 - Event review table.
 - Settings panels.
 - Export progress and result summary.
@@ -175,5 +176,6 @@ Primary screens:
 | Rust audio decode differs from Python/ffmpeg | Keep Python fixtures and golden tests. Add ffmpeg fallback if needed. |
 | Tauri UI scope grows too fast | Build static prototype first, then wire commands. |
 | Detection output changes unexpectedly | Compare event count, starts/ends, and exported CSV against fixtures. |
+| WebView cannot directly play a codec that Rust can decode | Add a normalized preview WAV command and play that generated preview instead. |
 | Windows packaging edge cases | Keep current PyInstaller app until Tauri build is verified. |
 | User recordings leak into Git | Keep `.gitignore` strict and use sanitized fixtures only. |

@@ -1,4 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
+import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { useEffect, useRef, useState, type PointerEvent, type ReactNode } from "react";
 import {
@@ -6,6 +6,7 @@ import {
   FileAudio,
   Info,
   ListChecks,
+  Pause,
   Play,
   ScanLine,
   Scissors,
@@ -184,6 +185,7 @@ const waveformBinCount = 720;
 
 function App() {
   const waveformRef = useRef<HTMLDivElement>(null);
+  const audioRef = useRef<HTMLAudioElement>(null);
   const [version, setVersion] = useState("0.1.0");
   const [analysis, setAnalysis] = useState<AnalyzeResult | null>(null);
   const [waveformBins, setWaveformBins] = useState<WaveformBin[]>(() => buildPreviewWaveform(waveformBinCount));
@@ -191,6 +193,9 @@ function App() {
   const [selectedEventId, setSelectedEventId] = useState<number>(fallbackEvents[0].id);
   const [selectingSpan, setSelectingSpan] = useState(false);
   const [dragSpan, setDragSpan] = useState<{ start: number; end: number } | null>(null);
+  const [audioSrc, setAudioSrc] = useState<string | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [playheadSec, setPlayheadSec] = useState(0);
   const [fileLabel, setFileLabel] = useState("20260603_233810.m4a");
   const [inputPath, setInputPath] = useState<string | null>(null);
   const [status, setStatus] = useState("加载 Rust 合成样例");
@@ -212,6 +217,9 @@ function App() {
         setEvents(mapped);
         setSelectedEventId(mapped[0]?.id ?? 0);
         setWaveformBins(buildPreviewWaveform(waveformBinCount));
+        setAudioSrc(null);
+        setIsPlaying(false);
+        setPlayheadSec(0);
         setFileLabel("Rust synthetic");
         setStatus("样例分析已完成");
       })
@@ -291,6 +299,9 @@ function App() {
       setWaveformBins(waveform.bins);
       setEvents([]);
       setSelectedEventId(0);
+      setAudioSrc(convertFileSrc(path));
+      setIsPlaying(false);
+      setPlayheadSec(0);
       setFileLabel(path.split(/[\\/]/).pop() ?? path);
       setInputPath(path);
       setStatus("录音已导入 · 请配置参数后检测");
@@ -298,6 +309,9 @@ function App() {
       const message = err instanceof Error ? err.message : String(err);
       setError(message);
       setWaveformBins(buildPreviewWaveform(waveformBinCount));
+      setAudioSrc(null);
+      setIsPlaying(false);
+      setPlayheadSec(0);
       setStatus("录音导入失败");
     }
   }
@@ -426,6 +440,11 @@ function App() {
 
   function beginSpanSelection(event: PointerEvent<HTMLElement>) {
     if (!selectingSpan) {
+      const sec = pointToSeconds(event);
+      setPlayheadSec(sec);
+      if (audioRef.current) {
+        audioRef.current.currentTime = sec;
+      }
       return;
     }
     const start = pointToSeconds(event);
@@ -478,12 +497,34 @@ function App() {
     }
   }
 
+  async function togglePlayback() {
+    const audio = audioRef.current;
+    if (!audioSrc || !audio) {
+      return;
+    }
+    try {
+      if (audio.paused) {
+        await audio.play();
+        setIsPlaying(true);
+      } else {
+        audio.pause();
+        setIsPlaying(false);
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      setError(message);
+      setStatus("播放失败");
+      setIsPlaying(false);
+    }
+  }
+
   const kept = events.filter((event) => event.keep);
   const keptSeconds = kept.reduce((sum, event) => sum + event.end - event.start, 0);
   const durationSeconds = Math.max(analysis?.duration_seconds ?? 70, 1);
   const selected = events.find((event) => event.id === selectedEventId) ?? events[0] ?? null;
   const dragLeft = dragSpan ? (Math.min(dragSpan.start, dragSpan.end) / durationSeconds) * 100 : 0;
   const dragWidth = dragSpan ? (Math.abs(dragSpan.end - dragSpan.start) / durationSeconds) * 100 : 0;
+  const playheadLeft = (Math.max(0, Math.min(playheadSec, durationSeconds)) / durationSeconds) * 100;
   const exportSummary =
     mode === "highlight"
       ? `合集约 ${keptSeconds.toFixed(1)} 秒 · WAV + CSV`
@@ -533,6 +574,16 @@ function App() {
       </section>
 
       <section className="workspace">
+        {audioSrc ? (
+          <audio
+            ref={audioRef}
+            src={audioSrc}
+            onTimeUpdate={(event) => setPlayheadSec(event.currentTarget.currentTime)}
+            onPause={() => setIsPlaying(false)}
+            onPlay={() => setIsPlaying(true)}
+            onEnded={() => setIsPlaying(false)}
+          />
+        ) : null}
         <aside className="flowRail" aria-label="流程">
           <Step active icon={<FileAudio size={18} />} label="导入" value="已加载" />
           <Step active icon={<Settings2 size={18} />} label="预处理" value="已完成" />
@@ -550,9 +601,9 @@ function App() {
               </span>
             </div>
             <div className="toolButtons">
-              <button>
-                <Play size={17} />
-                播放
+              <button onClick={() => void togglePlayback()} disabled={!audioSrc}>
+                {isPlaying ? <Pause size={17} /> : <Play size={17} />}
+                {isPlaying ? "暂停" : "播放"}
               </button>
               <button
                 onClick={() => {
@@ -630,7 +681,7 @@ function App() {
               />
             ))}
             {dragSpan ? <div className="selectionBlock" style={{ left: `${dragLeft}%`, width: `${dragWidth}%` }} /> : null}
-            <div className="playhead" style={{ left: "18%" }} />
+            <div className="playhead" style={{ left: `${playheadLeft}%` }} />
           </div>
 
           <div className="reviewTable" role="table" aria-label="事件列表">

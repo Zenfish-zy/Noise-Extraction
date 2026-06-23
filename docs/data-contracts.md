@@ -106,10 +106,12 @@ Current next-generation support:
 - Tauri command `export_audio(input_path, wav_path, csv_path, config, events)` writes full-mode WAV or highlight-mode WAV + CSV.
 - In `highlight` mode, `events` is the user-reviewed event list from the frontend. Deleted events are absent, `keep: false` events are excluded from the WAV highlight, and manual events are included when `keep: true`.
 - In full modes, `events` is ignored and only WAV is exported.
+- Frontend playback uses Tauri `convertFileSrc` and the app asset protocol. Backend decoding support and WebView media playback codec support are related but not identical.
 
 Current limitations:
 
 - Exotic codecs outside Symphonia's enabled decoders may still need the Python reference app or a future ffmpeg fallback.
+- Some formats that decode for analysis may still depend on Windows WebView codec support for direct playback until a normalized preview WAV path is added.
 - Noise reduction is not yet implemented in the Rust backend.
 
 ## ErrorResult
