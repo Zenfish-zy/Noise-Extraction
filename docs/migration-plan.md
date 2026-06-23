@@ -57,7 +57,7 @@ Exit criteria:
 - Tauri shell compiles with a React frontend.
 - UI can render mock, synthetic Rust, and common audio analysis events.
 - Imported audio renders a real downsampled waveform envelope from the Rust backend.
-- Imported audio can be played locally through Tauri's asset protocol, with waveform click-to-seek.
+- Imported audio can be played locally through generated WAV previews, with waveform click-to-seek.
 
 ## Phase 3: CLI Bridge
 
@@ -140,5 +140,5 @@ Exit criteria:
 - [x] Wire reviewed event keep/delete/manual state into next export.
 - [x] Split next import/preprocess from manual event detection.
 - [x] Render real waveform envelopes for imported audio in the Next UI.
-- [x] Add basic local playback and waveform click-to-seek in the Next UI.
+- [x] Add preview-WAV local playback and waveform click-to-seek in the Next UI.
 - [ ] Add parity fixtures against Python reference output.

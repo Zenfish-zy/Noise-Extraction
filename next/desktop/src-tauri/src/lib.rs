@@ -1,7 +1,9 @@
 use noise_types::{
-    AnalyzeResult, AppConfig, DetectConfig, ExportResult, NoiseEvent, ProcessMode, Sensitivity,
-    WaveformBin, WaveformResult,
+    AnalyzeResult, AppConfig, AudioPreviewResult, DetectConfig, ExportResult, NoiseEvent,
+    ProcessMode, Sensitivity, WaveformBin, WaveformResult,
 };
+use std::path::PathBuf;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 #[tauri::command]
 fn app_version() -> &'static str {
@@ -46,6 +48,19 @@ fn waveform_peaks(input_path: String, bins: usize) -> Result<WaveformResult, Str
         samplerate: audio.samplerate,
         duration_seconds: audio.duration_seconds,
         bins: build_waveform_bins(&audio.samples, bins),
+    })
+}
+
+#[tauri::command]
+fn prepare_audio_preview(input_path: String) -> Result<AudioPreviewResult, String> {
+    let audio = noise_io::load_audio_mono(&input_path).map_err(|err| err.to_string())?;
+    let wav_path = preview_wav_path();
+    noise_io::save_wav_mono(&wav_path, &audio.samples, audio.samplerate)
+        .map_err(|err| err.to_string())?;
+    Ok(AudioPreviewResult {
+        wav_path: wav_path.display().to_string(),
+        samplerate: audio.samplerate,
+        duration_seconds: audio.duration_seconds,
     })
 }
 
@@ -168,6 +183,17 @@ fn build_waveform_bins(samples: &[f32], bins: usize) -> Vec<WaveformBin> {
         .collect()
 }
 
+fn preview_wav_path() -> PathBuf {
+    let nonce = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|duration| duration.as_nanos())
+        .unwrap_or_default();
+    std::env::temp_dir().join(format!(
+        "noise-evidence-next-preview-{}-{nonce}.wav",
+        std::process::id()
+    ))
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -177,6 +203,7 @@ pub fn run() {
             analyze_synthetic,
             inspect_audio,
             waveform_peaks,
+            prepare_audio_preview,
             analyze_audio,
             manual_event,
             export_audio
@@ -203,6 +230,7 @@ mod tests {
         noise_io::save_wav_mono(&input_path, &[0.5; 16_000], 8_000).unwrap();
         let inspected = inspect_audio(path_string(&input_path)).unwrap();
         let waveform = waveform_peaks(path_string(&input_path), 4).unwrap();
+        let preview = prepare_audio_preview(path_string(&input_path)).unwrap();
         let result = export_audio(
             path_string(&input_path),
             path_string(&wav_path),
@@ -222,11 +250,15 @@ mod tests {
         assert!(inspected.events.is_empty());
         assert_eq!(waveform.bins.len(), 4);
         assert!(waveform.bins.iter().all(|bin| bin.max > 0.49));
+        let preview_audio = noise_io::load_audio_mono(&preview.wav_path).unwrap();
+        assert_eq!(preview.samplerate, 8_000);
+        assert!((preview_audio.duration_seconds - inspected.duration_seconds).abs() < 0.01);
         assert_eq!(result.kept_events, 1);
         assert!((result.duration_seconds - 0.25).abs() < 0.01);
         assert!((exported.duration_seconds - 0.25).abs() < 0.01);
         assert!(csv.contains("手动"));
         assert!(csv.contains("否"));
+        let _ = fs::remove_file(preview.wav_path);
     }
 
     fn highlight_config() -> AppConfig {

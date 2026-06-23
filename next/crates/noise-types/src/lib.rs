@@ -134,6 +134,13 @@ pub struct WaveformResult {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct AudioPreviewResult {
+    pub wav_path: String,
+    pub samplerate: u32,
+    pub duration_seconds: f64,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ExportResult {
     pub wav_path: String,
     pub csv_path: Option<String>,

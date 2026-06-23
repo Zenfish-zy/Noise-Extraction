@@ -80,6 +80,18 @@ The next-generation implementation uses JSON contracts to compare Python referen
 }
 ```
 
+## AudioPreviewResult
+
+`prepare_audio_preview(input_path)` decodes any supported input format and writes a temporary mono WAV preview for reliable WebView playback.
+
+```json
+{
+  "wav_path": "C:\\\\Users\\\\name\\\\AppData\\\\Local\\\\Temp\\\\noise-evidence-next-preview-1234.wav",
+  "samplerate": 48000,
+  "duration_seconds": 123.45
+}
+```
+
 ## ExportResult
 
 ```json
@@ -98,6 +110,7 @@ Current next-generation support:
 - `noise-cli analyze-audio --input <audio> --config <json>` reads local audio files.
 - Tauri command `inspect_audio(input_path)` reads local audio metadata for import/preprocess state and returns an `AnalyzeResult` with an empty `events` list.
 - Tauri command `waveform_peaks(input_path, bins)` reads the same local audio and returns a downsampled waveform envelope for display.
+- Tauri command `prepare_audio_preview(input_path)` writes a temporary WAV preview used by the frontend player.
 - Tauri command `analyze_audio(input_path, detect)` runs event detection only after the frontend explicitly triggers detection.
 - Supported input families are currently handled through Symphonia: `m4a/mp4/aac`, `mp3`, `wav`, `flac`, `ogg/oga`.
 - Audio is decoded to mono `f32`; multichannel files are averaged per frame.
@@ -106,12 +119,12 @@ Current next-generation support:
 - Tauri command `export_audio(input_path, wav_path, csv_path, config, events)` writes full-mode WAV or highlight-mode WAV + CSV.
 - In `highlight` mode, `events` is the user-reviewed event list from the frontend. Deleted events are absent, `keep: false` events are excluded from the WAV highlight, and manual events are included when `keep: true`.
 - In full modes, `events` is ignored and only WAV is exported.
-- Frontend playback uses Tauri `convertFileSrc` and the app asset protocol. Backend decoding support and WebView media playback codec support are related but not identical.
+- Frontend playback uses Tauri `convertFileSrc` and the app asset protocol to play the generated WAV preview, so playback follows backend decode support instead of WebView codec support.
 
 Current limitations:
 
 - Exotic codecs outside Symphonia's enabled decoders may still need the Python reference app or a future ffmpeg fallback.
-- Some formats that decode for analysis may still depend on Windows WebView codec support for direct playback until a normalized preview WAV path is added.
+- Preview WAV files are written to the OS temp directory and are not currently garbage-collected by the app.
 - Noise reduction is not yet implemented in the Rust backend.
 
 ## ErrorResult

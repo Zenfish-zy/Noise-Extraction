@@ -50,6 +50,12 @@ type WaveformResult = {
   bins: WaveformBin[];
 };
 
+type AudioPreviewResult = {
+  wav_path: string;
+  samplerate: number;
+  duration_seconds: number;
+};
+
 type AppConfig = {
   mode: ProcessMode;
   denoise: {
@@ -286,7 +292,7 @@ function App() {
     setError(null);
     setStatus("正在读取音频信息");
     try {
-      const [result, waveform] = await Promise.all([
+      const [result, waveform, preview] = await Promise.all([
         invoke<AnalyzeResult>("inspect_audio", {
           inputPath: path,
         }),
@@ -294,12 +300,15 @@ function App() {
           inputPath: path,
           bins: waveformBinCount,
         }),
+        invoke<AudioPreviewResult>("prepare_audio_preview", {
+          inputPath: path,
+        }),
       ]);
       setAnalysis(result);
       setWaveformBins(waveform.bins);
       setEvents([]);
       setSelectedEventId(0);
-      setAudioSrc(convertFileSrc(path));
+      setAudioSrc(convertFileSrc(preview.wav_path));
       setIsPlaying(false);
       setPlayheadSec(0);
       setFileLabel(path.split(/[\\/]/).pop() ?? path);
