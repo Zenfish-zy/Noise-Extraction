@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { open } from "@tauri-apps/plugin-dialog";
+import { open, save } from "@tauri-apps/plugin-dialog";
 import { useEffect, useState, type ReactNode } from "react";
 import {
   Download,
@@ -15,7 +15,9 @@ import {
 } from "lucide-react";
 
 type EventKind = "rumble" | "thud" | "drag" | "transient" | "other";
+type ProcessMode = "full_denoise" | "full_amplify" | "highlight";
 type Sensitivity = "low" | "medium" | "high";
+type GainMode = "off" | "global" | "per_event";
 
 type CoreNoiseEvent = {
   start: number;
@@ -32,6 +34,19 @@ type AnalyzeResult = {
   events: CoreNoiseEvent[];
 };
 
+type AppConfig = {
+  mode: ProcessMode;
+  denoise: {
+    enabled: boolean;
+    noise_sample_seconds: number;
+    prop_decrease: number;
+    stationary: boolean;
+  };
+  detect: DetectConfig;
+  gain: GainConfig;
+  export: ExportConfig;
+};
+
 type DetectConfig = {
   frame_ms: number;
   hop_ms: number;
@@ -40,6 +55,28 @@ type DetectConfig = {
   merge_gap_seconds: number;
   pad_seconds: number;
   min_peak_dbfs: number;
+};
+
+type GainConfig = {
+  enabled: boolean;
+  mode: GainMode;
+  target_peak_dbfs: number;
+  max_gain_db: number;
+};
+
+type ExportConfig = {
+  gap_seconds: number;
+  insert_beep: boolean;
+  beep_hz: number;
+  beep_seconds: number;
+  out_samplerate: number | null;
+};
+
+type ExportResult = {
+  wav_path: string;
+  csv_path: string | null;
+  kept_events: number;
+  duration_seconds: number;
 };
 
 type NoiseEvent = {
@@ -82,6 +119,7 @@ function App() {
   const [inputPath, setInputPath] = useState<string | null>(null);
   const [status, setStatus] = useState("加载 Rust 合成样例");
   const [error, setError] = useState<string | null>(null);
+  const [mode, setMode] = useState<ProcessMode>("highlight");
   const [sensitivity, setSensitivity] = useState<Sensitivity>("medium");
   const [mergeGap, setMergeGap] = useState(0.8);
   const [padSeconds, setPadSeconds] = useState(0.6);
@@ -111,6 +149,48 @@ function App() {
       merge_gap_seconds: mergeGap,
       pad_seconds: padSeconds,
       min_peak_dbfs: minPeakDbfs,
+    };
+  }
+
+  function gainConfig(): GainConfig {
+    if (mode === "full_denoise") {
+      return {
+        enabled: false,
+        mode: "off",
+        target_peak_dbfs: -1,
+        max_gain_db: 36,
+      };
+    }
+    return {
+      enabled: true,
+      mode: mode === "highlight" ? "per_event" : "global",
+      target_peak_dbfs: -1,
+      max_gain_db: 36,
+    };
+  }
+
+  function exportConfig(): ExportConfig {
+    return {
+      gap_seconds: 0.5,
+      insert_beep: true,
+      beep_hz: 880,
+      beep_seconds: 0.12,
+      out_samplerate: null,
+    };
+  }
+
+  function appConfig(): AppConfig {
+    return {
+      mode,
+      denoise: {
+        enabled: false,
+        noise_sample_seconds: 1,
+        prop_decrease: 0.9,
+        stationary: true,
+      },
+      detect: detectConfig(),
+      gain: gainConfig(),
+      export: exportConfig(),
     };
   }
 
@@ -148,6 +228,57 @@ function App() {
     await analyzeCurrentWav(selected);
   }
 
+  async function exportEvidence() {
+    setError(null);
+    if (!inputPath) {
+      setError("请先导入 WAV 录音。");
+      setStatus("等待导入录音");
+      return;
+    }
+
+    const base = stripExtension(fileLabel || "noise-evidence");
+    const wavPath = await save({
+      title: "保存导出 WAV",
+      defaultPath: `${base}_${mode === "highlight" ? "噪音提取" : mode === "full_amplify" ? "整段放大" : "整段降噪"}.wav`,
+      filters: [{ name: "WAV 音频", extensions: ["wav"] }],
+    });
+    if (!wavPath) {
+      return;
+    }
+
+    let csvPath: string | null = null;
+    if (mode === "highlight") {
+      const selectedCsvPath = await save({
+        title: "保存 CSV 证据报告",
+        defaultPath: `${base}_证据报告.csv`,
+        filters: [{ name: "CSV 报告", extensions: ["csv"] }],
+      });
+      if (!selectedCsvPath) {
+        return;
+      }
+      csvPath = selectedCsvPath;
+    }
+
+    setStatus("正在导出");
+    try {
+      const result = await invoke<ExportResult>("export_audio", {
+        inputPath,
+        wavPath,
+        csvPath,
+        config: appConfig(),
+      });
+      setStatus(
+        result.csv_path
+          ? `导出完成 · ${result.kept_events} 段 · WAV + CSV`
+          : `导出完成 · ${result.duration_seconds.toFixed(1)}s · WAV`,
+      );
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      setError(message);
+      setStatus("导出失败");
+    }
+  }
+
   const events = analysis
     ? analysis.events.map((event, index) => ({
         id: index + 1,
@@ -163,6 +294,10 @@ function App() {
   const kept = events.filter((event) => event.keep);
   const keptSeconds = kept.reduce((sum, event) => sum + event.end - event.start, 0);
   const durationSeconds = Math.max(analysis?.duration_seconds ?? 70, 1);
+  const exportSummary =
+    mode === "highlight"
+      ? `合集约 ${keptSeconds.toFixed(1)} 秒 · WAV + CSV`
+      : `${durationSeconds.toFixed(1)} 秒 · 仅 WAV`;
 
   return (
     <main className="appShell">
@@ -178,9 +313,21 @@ function App() {
         </div>
 
         <div className="modeGroup" aria-label="处理模式">
-          <button className="modeButton">整段降噪</button>
-          <button className="modeButton">整段放大</button>
-          <button className="modeButton active">智能切片</button>
+          <button
+            className={`modeButton ${mode === "full_denoise" ? "active" : ""}`}
+            onClick={() => setMode("full_denoise")}
+          >
+            整段降噪
+          </button>
+          <button
+            className={`modeButton ${mode === "full_amplify" ? "active" : ""}`}
+            onClick={() => setMode("full_amplify")}
+          >
+            整段放大
+          </button>
+          <button className={`modeButton ${mode === "highlight" ? "active" : ""}`} onClick={() => setMode("highlight")}>
+            智能切片
+          </button>
         </div>
 
         <div className="topActions">
@@ -188,7 +335,7 @@ function App() {
             <FileAudio size={18} />
             导入录音
           </button>
-          <button className="ghostButton">
+          <button className="ghostButton" onClick={exportEvidence}>
             <Download size={18} />
             导出
           </button>
@@ -353,9 +500,9 @@ function App() {
       <section className="exportBar" aria-label="导出摘要">
         <div>
           <strong>{kept.length} 段保留</strong>
-          <span>合集约 {keptSeconds.toFixed(1)} 秒 · WAV + CSV</span>
+          <span>{exportSummary}</span>
         </div>
-        <button className="primaryButton">
+        <button className="primaryButton" onClick={exportEvidence}>
           <Download size={18} />
           导出证据
         </button>
@@ -380,6 +527,10 @@ function formatTime(value: number) {
   const minutes = Math.floor(value / 60);
   const seconds = value - minutes * 60;
   return `${minutes.toString().padStart(2, "0")}:${seconds.toFixed(2).padStart(5, "0")}`;
+}
+
+function stripExtension(value: string) {
+  return value.replace(/\.[^/.\\]+$/, "");
 }
 
 export default App;

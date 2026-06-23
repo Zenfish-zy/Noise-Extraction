@@ -1,4 +1,4 @@
-use noise_types::{AnalyzeResult, DetectConfig, Sensitivity};
+use noise_types::{AnalyzeResult, AppConfig, DetectConfig, ExportResult, ProcessMode, Sensitivity};
 
 #[tauri::command]
 fn app_version() -> &'static str {
@@ -37,6 +37,60 @@ fn analyze_wav(input_path: String, detect: DetectConfig) -> Result<AnalyzeResult
     })
 }
 
+#[tauri::command]
+fn export_audio(
+    input_path: String,
+    wav_path: String,
+    csv_path: Option<String>,
+    config: AppConfig,
+) -> Result<ExportResult, String> {
+    let audio = noise_io::load_wav_mono(&input_path).map_err(|err| err.to_string())?;
+    let events = if config.mode == ProcessMode::Highlight {
+        noise_core::detect_events(&audio.samples, audio.samplerate, &config.detect)
+    } else {
+        Vec::new()
+    };
+    let built = match config.mode {
+        ProcessMode::FullDenoise => {
+            noise_core::build_full_export(&audio.samples, audio.samplerate, &config.export, None)
+        }
+        ProcessMode::FullAmplify => noise_core::build_full_export(
+            &audio.samples,
+            audio.samplerate,
+            &config.export,
+            Some(&config.gain),
+        ),
+        ProcessMode::Highlight => noise_core::build_highlight_export(
+            &audio.samples,
+            audio.samplerate,
+            &events,
+            &config.export,
+            Some(&config.gain),
+        ),
+    }
+    .map_err(|err| err.to_string())?;
+
+    noise_io::save_wav_mono(&wav_path, &built.samples, built.samplerate)
+        .map_err(|err| err.to_string())?;
+    let csv_path = if config.mode == ProcessMode::Highlight {
+        if let Some(path) = csv_path {
+            noise_io::save_report_csv(&path, &events).map_err(|err| err.to_string())?;
+            Some(path)
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+
+    Ok(ExportResult {
+        wav_path,
+        csv_path,
+        kept_events: events.iter().filter(|event| event.keep).count(),
+        duration_seconds: built.samples.len() as f64 / built.samplerate as f64,
+    })
+}
+
 fn synthetic_demo_signal() -> (Vec<f32>, u32, f64) {
     let samplerate = 8000_u32;
     let duration_seconds = 8.0_f64;
@@ -64,7 +118,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             app_version,
             analyze_synthetic,
-            analyze_wav
+            analyze_wav,
+            export_audio
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

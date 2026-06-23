@@ -65,6 +65,17 @@ The next-generation implementation uses JSON contracts to compare Python referen
 }
 ```
 
+## ExportResult
+
+```json
+{
+  "wav_path": "C:\\\\Users\\\\name\\\\Desktop\\\\noise_highlight.wav",
+  "csv_path": "C:\\\\Users\\\\name\\\\Desktop\\\\noise_report.csv",
+  "kept_events": 3,
+  "duration_seconds": 18.42
+}
+```
+
 ## Audio Input
 
 Current next-generation support:
@@ -72,11 +83,13 @@ Current next-generation support:
 - `noise-cli analyze-wav --input <wav> --config <json>` reads local WAV files.
 - Tauri command `analyze_wav(input_path, detect)` reads local WAV files selected by the frontend dialog.
 - WAV is decoded to mono `f32`; multichannel files are averaged per frame.
+- `noise-cli export-wav --input <wav> --output <wav> --config <json> [--csv <report.csv>]` writes a WAV export and, in highlight mode, an optional CSV report.
+- Tauri command `export_audio(input_path, wav_path, csv_path, config)` writes full-mode WAV or highlight-mode WAV + CSV.
 
 Current limitations:
 
 - `m4a`, `mp3`, `aac`, `flac`, and `ogg` are still handled by the Python reference app only.
-- Noise reduction and export are not yet implemented in the Rust backend.
+- Noise reduction is not yet implemented in the Rust backend.
 
 ## ErrorResult
 

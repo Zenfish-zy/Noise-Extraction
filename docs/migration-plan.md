@@ -59,12 +59,12 @@ Exit criteria:
 
 ## Phase 3: CLI Bridge
 
-Status: current phase.
+Status: complete for WAV analyze/export commands; still open for progress events.
 
 Goals:
 
 - Add `next/crates/noise-cli`.
-- Provide CLI commands for synthetic and WAV analysis.
+- Provide CLI commands for synthetic analysis, WAV analysis, and WAV export.
 - Let Tauri call backend commands that return `AnalyzeResult`.
 - Keep JSON output compatible with `docs/data-contracts.md`.
 
@@ -75,6 +75,8 @@ Exit criteria:
 - Errors are displayed consistently.
 
 ## Phase 4: Rust Core Parity
+
+Status: current phase.
 
 Goals:
 
@@ -130,5 +132,6 @@ Exit criteria:
 - [x] Add Tauri React desktop prototype.
 - [x] Add Rust WAV input boundary and CLI smoke path.
 - [x] Wire frontend WAV selection to Tauri/Rust analysis.
-- [ ] Add Rust export path for full WAV and highlight WAV.
+- [x] Add Rust export path for full WAV, highlight WAV, and CSV report.
+- [x] Wire frontend save dialogs to Tauri/Rust export.
 - [ ] Add parity fixtures against Python reference output.

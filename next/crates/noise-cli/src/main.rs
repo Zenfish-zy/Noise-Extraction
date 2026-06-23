@@ -3,7 +3,7 @@ use std::fs;
 use std::path::PathBuf;
 use std::process;
 
-use noise_types::{AnalyzeResult, AppConfig};
+use noise_types::{AnalyzeResult, AppConfig, ExportResult, ProcessMode};
 
 fn main() {
     if let Err(err) = run() {
@@ -49,12 +49,25 @@ fn run() -> Result<(), String> {
             println!("{json}");
             Ok(())
         }
+        "export-wav" => {
+            let parsed = parse_export_wav_args(args.collect())?;
+            let config = read_config(&parsed.config_path)?;
+            let result = export_wav(
+                &parsed.input_path,
+                &parsed.output_path,
+                parsed.csv_path.as_ref(),
+                &config,
+            )?;
+            let json = serde_json::to_string_pretty(&result).map_err(|err| err.to_string())?;
+            println!("{json}");
+            Ok(())
+        }
         _ => Err(usage()),
     }
 }
 
 fn usage() -> String {
-    "usage: noise-cli analyze-synthetic --config <path>\n       noise-cli analyze-wav --input <wav> --config <path>".to_string()
+    "usage: noise-cli analyze-synthetic --config <path>\n       noise-cli analyze-wav --input <wav> --config <path>\n       noise-cli export-wav --input <wav> --output <wav> --config <path> [--csv <report.csv>]".to_string()
 }
 
 fn parse_config_arg(args: Vec<String>) -> Result<PathBuf, String> {
@@ -73,6 +86,13 @@ fn parse_config_arg(args: Vec<String>) -> Result<PathBuf, String> {
 struct AnalyzeWavArgs {
     input_path: PathBuf,
     config_path: PathBuf,
+}
+
+struct ExportWavArgs {
+    input_path: PathBuf,
+    output_path: PathBuf,
+    config_path: PathBuf,
+    csv_path: Option<PathBuf>,
 }
 
 fn parse_analyze_wav_args(args: Vec<String>) -> Result<AnalyzeWavArgs, String> {
@@ -102,11 +122,109 @@ fn parse_analyze_wav_args(args: Vec<String>) -> Result<AnalyzeWavArgs, String> {
     })
 }
 
+fn parse_export_wav_args(args: Vec<String>) -> Result<ExportWavArgs, String> {
+    let mut input_path = None;
+    let mut output_path = None;
+    let mut config_path = None;
+    let mut csv_path = None;
+    let mut iter = args.into_iter();
+    while let Some(arg) = iter.next() {
+        match arg.as_str() {
+            "--input" => {
+                let Some(path) = iter.next() else {
+                    return Err("missing value for --input".to_string());
+                };
+                input_path = Some(PathBuf::from(path));
+            }
+            "--output" => {
+                let Some(path) = iter.next() else {
+                    return Err("missing value for --output".to_string());
+                };
+                output_path = Some(PathBuf::from(path));
+            }
+            "--config" => {
+                let Some(path) = iter.next() else {
+                    return Err("missing value for --config".to_string());
+                };
+                config_path = Some(PathBuf::from(path));
+            }
+            "--csv" => {
+                let Some(path) = iter.next() else {
+                    return Err("missing value for --csv".to_string());
+                };
+                csv_path = Some(PathBuf::from(path));
+            }
+            _ => return Err(format!("unknown argument: {arg}")),
+        }
+    }
+    Ok(ExportWavArgs {
+        input_path: input_path.ok_or_else(|| "missing required --input <wav>".to_string())?,
+        output_path: output_path.ok_or_else(|| "missing required --output <wav>".to_string())?,
+        config_path: config_path.ok_or_else(|| "missing required --config <path>".to_string())?,
+        csv_path,
+    })
+}
+
 fn read_config(path: &PathBuf) -> Result<AppConfig, String> {
     let raw = fs::read_to_string(path)
         .map_err(|err| format!("failed to read config '{}': {err}", path.display()))?;
     serde_json::from_str(&raw)
         .map_err(|err| format!("failed to parse config '{}': {err}", path.display()))
+}
+
+fn export_wav(
+    input_path: &PathBuf,
+    output_path: &PathBuf,
+    csv_path: Option<&PathBuf>,
+    config: &AppConfig,
+) -> Result<ExportResult, String> {
+    let audio = noise_io::load_wav_mono(input_path)
+        .map_err(|err| format!("failed to load input audio: {err}"))?;
+    let events = if config.mode == ProcessMode::Highlight {
+        noise_core::detect_events(&audio.samples, audio.samplerate, &config.detect)
+    } else {
+        Vec::new()
+    };
+    let built = match config.mode {
+        ProcessMode::FullDenoise => {
+            noise_core::build_full_export(&audio.samples, audio.samplerate, &config.export, None)
+        }
+        ProcessMode::FullAmplify => noise_core::build_full_export(
+            &audio.samples,
+            audio.samplerate,
+            &config.export,
+            Some(&config.gain),
+        ),
+        ProcessMode::Highlight => noise_core::build_highlight_export(
+            &audio.samples,
+            audio.samplerate,
+            &events,
+            &config.export,
+            Some(&config.gain),
+        ),
+    }
+    .map_err(|err| err.to_string())?;
+
+    noise_io::save_wav_mono(output_path, &built.samples, built.samplerate)
+        .map_err(|err| format!("failed to save WAV: {err}"))?;
+    let csv_path = if config.mode == ProcessMode::Highlight {
+        if let Some(path) = csv_path {
+            noise_io::save_report_csv(path, &events)
+                .map_err(|err| format!("failed to save CSV: {err}"))?;
+            Some(path.display().to_string())
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+
+    Ok(ExportResult {
+        wav_path: output_path.display().to_string(),
+        csv_path,
+        kept_events: events.iter().filter(|event| event.keep).count(),
+        duration_seconds: built.samples.len() as f64 / built.samplerate as f64,
+    })
 }
 
 fn synthetic_close_peaks() -> (Vec<f32>, u32, f64) {

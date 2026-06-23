@@ -88,6 +88,8 @@ Current responsibilities:
 
 - WAV decode to mono `f32`.
 - Stereo/multichannel downmix.
+- Mono 16-bit WAV writing.
+- UTF-8-BOM CSV report writing.
 - Sampling-rate and duration reporting.
 
 Future responsibilities:
@@ -100,9 +102,6 @@ Future responsibilities:
 
 - Optional noise reduction.
 - Preprocess/analyze/export orchestration.
-- Full WAV export.
-- Highlight WAV export.
-- CSV report export.
 
 Rust processing modules must be usable without the GUI through `noise-cli`.
 

@@ -77,7 +77,7 @@ pub struct ExportConfig {
     pub out_samplerate: Option<u32>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Sensitivity {
     Low,
@@ -85,7 +85,7 @@ pub enum Sensitivity {
     High,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum GainMode {
     Off,
@@ -121,13 +121,21 @@ pub struct AnalyzeResult {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct ExportResult {
+    pub wav_path: String,
+    pub csv_path: Option<String>,
+    pub kept_events: usize,
+    pub duration_seconds: f64,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ErrorResult {
     pub code: String,
     pub message: String,
     pub details: Option<String>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum EventKind {
     Rumble,
